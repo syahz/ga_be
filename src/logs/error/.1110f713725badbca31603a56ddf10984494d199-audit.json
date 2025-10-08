@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": false,
+        "amount": 5
+    },
+    "auditLog": "D:\\Project\\LPHUBSIM_BE\\src\\logs\\error\\.1110f713725badbca31603a56ddf10984494d199-audit.json",
+    "files": [
+        {
+            "date": 1756212985110,
+            "name": "D:\\Project\\LPHUBSIM_BE\\src\\logs\\error\\2025-08-26.log",
+            "hash": "38a245c9a00296d67bc6d836e7e4f0127d15da63ff5b543406691f72a7e83ed9"
+        }
+    ],
+    "hashType": "sha256"
+}

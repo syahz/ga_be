@@ -1,0 +1,35 @@
+{
+    "keep": {
+        "days": false,
+        "amount": 5
+    },
+    "auditLog": "D:\\BMU\\ROOT LPH UB\\lphubsim_be\\src\\logs\\error\\.281eb93ca7af270a381902062e4fa45fda679e88-audit.json",
+    "files": [
+        {
+            "date": 1758550266626,
+            "name": "D:\\BMU\\ROOT LPH UB\\lphubsim_be\\src\\logs\\error\\2025-09-22.log",
+            "hash": "59df22865d3d4b715a117c0f032dea76fe88cba75bff358bbdab3ed6a95a1d27"
+        },
+        {
+            "date": 1758680315972,
+            "name": "D:\\BMU\\ROOT LPH UB\\lphubsim_be\\src\\logs\\error\\2025-09-24.log",
+            "hash": "e105b9b3f17a579053ca5616e646e114760c55cf306d4f3c61351a229130bafe"
+        },
+        {
+            "date": 1758764627972,
+            "name": "D:\\BMU\\ROOT LPH UB\\lphubsim_be\\src\\logs\\error\\2025-09-25.log",
+            "hash": "0e466e023a2e0c65ac1b9e03893d12c9c9dff683e53157854330d0c8f206d0a5"
+        },
+        {
+            "date": 1758851268615,
+            "name": "D:\\BMU\\ROOT LPH UB\\lphubsim_be\\src\\logs\\error\\2025-09-26.log",
+            "hash": "6785f838db18845ea7ccbfa0f569e0608a2a3c7cd54c681f5ddd57c179dcd4aa"
+        },
+        {
+            "date": 1758968777717,
+            "name": "D:\\BMU\\ROOT LPH UB\\lphubsim_be\\src\\logs\\error\\2025-09-27.log",
+            "hash": "afc03f386c05ea00f08a61d9aa95472f028e72822d256c889adaa7ae541a7349"
+        }
+    ],
+    "hashType": "sha256"
+}

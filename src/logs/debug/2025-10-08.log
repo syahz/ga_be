@@ -1,0 +1,51 @@
+2025-10-08 14:18:50 debug: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NGM1ZWRlMy0zMzYxLTQzOGMtYmM5Ni1mNDViOTZiYmY0N2QiLCJyb2xlIjoiU3RhZmYiLCJpYXQiOjE3NTk5MDc5MzAsImV4cCI6MTc1OTkxMTUzMH0.5gMVt183LTTtSz9vm9AXTzm4gWFP_Q0M9NgaHBOEPwA"
+2025-10-08 14:18:50 debug: {
+  "errors": "Do not know how to serialize a BigInt"
+}
+2025-10-08 14:20:51 debug: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJiMTFlYjgyNy0zZmU1LTQ5Y2QtYWNjMS1kNTEyZTNiMGE1NTEiLCJyb2xlIjoiU3RhZmYiLCJpYXQiOjE3NTk5MDgwNTEsImV4cCI6MTc1OTkxMTY1MX0.uJdcwgyLH5XIBZ5zdDWzlUGGwKDHQjHrwGJapBEfjvo"
+2025-10-08 14:20:51 debug: {
+  "errors": "Do not know how to serialize a BigInt"
+}
+2025-10-08 14:23:05 debug: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI0ZjVkYjFjMy1iMzZlLTRkN2UtOTU4MC1jYTZmYjc2NzI2N2IiLCJyb2xlIjoiQWRtaW4iLCJpYXQiOjE3NTk5MDgxODUsImV4cCI6MTc1OTkxMTc4NX0.pVk-Gw35haRSpHZvS_zcQwbPxV1Iw0gwDux_405bULU"
+2025-10-08 14:23:05 debug: {
+  "data": {
+    "id": "8055302c-4ecd-48aa-8695-813184af2455",
+    "name": "TEST-Aturan Baru",
+    "minAmount": "500000",
+    "maxAmount": "2500000",
+    "steps": [
+      {
+        "id": "4dd48d11-ea70-49f2-8c23-8b0eb61b5c2f",
+        "stepOrder": 1,
+        "stepType": "CREATE",
+        "role": {
+          "id": "3d0be22b-52ec-4cf7-a1af-adc3881f0810",
+          "name": "Staff"
+        }
+      },
+      {
+        "id": "b269e6cb-a4b5-4918-96b8-9f47fac6e778",
+        "stepOrder": 2,
+        "stepType": "REVIEW",
+        "role": {
+          "id": "e91fe452-fb01-4f41-95bf-74c33afe8732",
+          "name": "Manajer Keuangan"
+        }
+      },
+      {
+        "id": "f8891072-6d87-477d-a804-a64a58496112",
+        "stepOrder": 3,
+        "stepType": "APPROVE",
+        "role": {
+          "id": "a645d8e7-76f4-4493-8592-46d7df66fabf",
+          "name": "GM"
+        }
+      }
+    ]
+  }
+}
+2025-10-08 14:23:05 debug: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI0ZjVkYjFjMy1iMzZlLTRkN2UtOTU4MC1jYTZmYjc2NzI2N2IiLCJyb2xlIjoiQWRtaW4iLCJpYXQiOjE3NTk5MDgxODUsImV4cCI6MTc1OTkxMTc4NX0.pVk-Gw35haRSpHZvS_zcQwbPxV1Iw0gwDux_405bULU"
+2025-10-08 14:23:05 debug: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI0ZjVkYjFjMy1iMzZlLTRkN2UtOTU4MC1jYTZmYjc2NzI2N2IiLCJyb2xlIjoiQWRtaW4iLCJpYXQiOjE3NTk5MDgxODUsImV4cCI6MTc1OTkxMTc4NX0.pVk-Gw35haRSpHZvS_zcQwbPxV1Iw0gwDux_405bULU"
+2025-10-08 14:23:05 debug: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI0ZjVkYjFjMy1iMzZlLTRkN2UtOTU4MC1jYTZmYjc2NzI2N2IiLCJyb2xlIjoiQWRtaW4iLCJpYXQiOjE3NTk5MDgxODUsImV4cCI6MTc1OTkxMTc4NX0.pVk-Gw35haRSpHZvS_zcQwbPxV1Iw0gwDux_405bULU"
+2025-10-08 14:23:05 debug: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI0ZjVkYjFjMy1iMzZlLTRkN2UtOTU4MC1jYTZmYjc2NzI2N2IiLCJyb2xlIjoiQWRtaW4iLCJpYXQiOjE3NTk5MDgxODUsImV4cCI6MTc1OTkxMTc4NX0.pVk-Gw35haRSpHZvS_zcQwbPxV1Iw0gwDux_405bULU"
+2025-10-08 14:23:05 debug: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI0ZjVkYjFjMy1iMzZlLTRkN2UtOTU4MC1jYTZmYjc2NzI2N2IiLCJyb2xlIjoiQWRtaW4iLCJpYXQiOjE3NTk5MDgxODUsImV4cCI6MTc1OTkxMTc4NX0.pVk-Gw35haRSpHZvS_zcQwbPxV1Iw0gwDux_405bULU"
