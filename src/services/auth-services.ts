@@ -2,7 +2,7 @@ import { Response } from 'express'
 import { signAccessToken } from '../utils/jwt'
 import bcrypt from 'bcryptjs'
 import { createRefreshToken, hashToken } from '../utils/token'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Role, Unit, User } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -12,7 +12,7 @@ function cookieOptions() {
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
+    sameSite: 'lax' as const,
     maxAge: REFRESH_EXPIRES_SECONDS * 1000,
     path: '/'
   }
@@ -77,6 +77,43 @@ export const loginAuth = async (email: string, password: string, res: Response) 
   })
   // Set CSRF token cookie if enabled
   if (csrfEnabled && csrfToken) {
+    res.cookie('csrf_token', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict' as const,
+      maxAge: REFRESH_EXPIRES_SECONDS * 1000,
+      path: '/'
+    })
+  }
+
+  return { accessToken, user: { id: user.id, name: user.name, email: user.email, role } }
+}
+
+export const loginWithGoogle = async (user: User & { role: Role; unit: Unit }, res: Response) => {
+  if (!user) {
+    throw new Error('User not provided for Google login')
+  }
+
+  const role = user.role.name
+  const unit = user.unit.name
+
+  const accessToken = signAccessToken({ userId: user.id, role })
+
+  const refreshPlain = createRefreshToken()
+  const tokenHash = hashToken(refreshPlain)
+  const expiresAt = new Date(Date.now() + REFRESH_EXPIRES_SECONDS * 1000)
+
+  await prisma.refreshToken.create({
+    data: { userId: user.id, tokenHash, expiresAt }
+  })
+
+  // Set semua cookie yang diperlukan
+  res.cookie('refresh_token', refreshPlain, cookieOptions())
+  res.cookie('user_role', role, { maxAge: REFRESH_EXPIRES_SECONDS * 1000, path: '/', sameSite: 'lax', secure: process.env.NODE_ENV === 'production' })
+  res.cookie('user_unit', unit, { maxAge: REFRESH_EXPIRES_SECONDS * 1000, path: '/', sameSite: 'lax', secure: process.env.NODE_ENV === 'production' })
+
+  if (process.env.CSRF_ENABLED === 'true') {
+    const csrfToken = createRefreshToken().slice(0, 32)
     res.cookie('csrf_token', csrfToken, {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',

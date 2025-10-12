@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
-import { getRules, createRule, updateRuleDetails, updateStepDetails, deleteRule } from '../services/rule-services'
-import { CreateRuleRequest, UpdateRuleRequest, UpdateStepRequest } from '../models/rule-model'
+import { getRules, createRule, updateRuleDetails, deleteRule, updateRuleSteps, getRuleById } from '../services/rule-services'
+import { CreateRuleRequest, UpdateRuleRequest, UpdateRuleStepsRequest } from '../models/rule-model'
 
 // Handler untuk GET /rules
 export const get = async (req: Request, res: Response, next: NextFunction) => {
@@ -9,7 +9,20 @@ export const get = async (req: Request, res: Response, next: NextFunction) => {
     const limit = parseInt(req.query.limit as string) || 10
     const search = (req.query.search as string) || ''
     const response = await getRules(page, limit, search)
-    res.status(200).json(response)
+    res.status(200).json({ data: response })
+  } catch (e) {
+    next(e)
+  }
+}
+
+// Handler untuk GET /rules/:ruleId
+export const getById = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { ruleId } = req.params
+    const response = await getRuleById(ruleId)
+    res.status(200).json({
+      data: response
+    })
   } catch (e) {
     next(e)
   }
@@ -42,8 +55,8 @@ export const updateRule = async (req: Request, res: Response, next: NextFunction
 export const updateStep = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const stepId = req.params.stepId
-    const request: UpdateStepRequest = req.body
-    const response = await updateStepDetails(stepId, request)
+    const request: UpdateRuleStepsRequest = req.body
+    const response = await updateRuleSteps(stepId, request)
     res.status(200).json({ data: response })
   } catch (e) {
     next(e)

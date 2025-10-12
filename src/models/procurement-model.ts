@@ -1,12 +1,13 @@
 import { ProcurementLetter, User, Unit } from '@prisma/client'
 
-// DTO untuk membuat surat (tidak berubah)
+// DTO untuk membuat surat (unitId dibuat opsional)
 export interface CreateProcurementRequestDto {
   letterNumber: string
   letterAbout: string
   nominal: number
   incomingLetterDate: string
-  letterFile?: string
+  letterFile: string
+  unitId: string
 }
 
 // DTO untuk memproses keputusan (tidak berubah)
@@ -15,18 +16,21 @@ export interface ProcessDecisionRequestDto {
   comment?: string
 }
 
-// Tipe data detail surat (tidak berubah)
-export type ProcurementLetterWithDetails = ProcurementLetter & {
-  createdBy: Pick<User, 'name'>
+// Tipe data dasar dengan relasi (tidak perlu diekspor)
+type ProcurementLetterWithRelations = ProcurementLetter & {
+  createdBy: Pick<User, 'name'> | null
   currentApprover?: Pick<User, 'name'> | null
-  unit: Pick<Unit, 'name'>
+  unit: Pick<Unit, 'name'> | null
 }
 
-// --- PERUBAHAN DIMULAI DI SINI ---
+// Tipe data final untuk SATU surat yang akan dikirim sebagai response (nominal sudah string)
+export type ProcurementLetterResponse = Omit<ProcurementLetterWithRelations, 'nominal'> & {
+  nominal: string
+}
 
-// Model Type untuk response get all data dengan paginasi
+// Tipe data untuk response get all data dengan paginasi
 export type GetAllProcurementLettersResponse = {
-  letters: ProcurementLetterWithDetails[]
+  letters: ProcurementLetterResponse[]
   pagination: {
     total_data: number
     page: number
@@ -35,24 +39,37 @@ export type GetAllProcurementLettersResponse = {
   }
 }
 
-// Helper function untuk memetakan hasil query ke response yang diinginkan
+// Fungsi helper serialisasi BigInt
+function serializeBigInt(obj: any) {
+  return JSON.parse(JSON.stringify(obj, (_, value) => (typeof value === 'bigint' ? value.toString() : value)))
+}
+
+/**
+ * Helper function untuk mengubah SATU objek surat dari Prisma
+ * menjadi format JSON response yang aman (menangani BigInt dan relasi null).
+ */
+export function toProcurementLetterResponse(letter: ProcurementLetterWithRelations): ProcurementLetterResponse {
+  const serialized = serializeBigInt(letter)
+  return {
+    ...serialized,
+    createdBy: letter.createdBy || { name: 'Unknown User' },
+    currentApprover: letter.currentApprover, // Bisa null, jadi tidak perlu fallback
+    unit: letter.unit || { name: 'Unknown Unit' }
+  }
+}
+
+/**
+ * Helper function untuk mengubah hasil query (banyak surat)
+ * menjadi format response yang kita inginkan, lengkap dengan paginasi.
+ */
 export function toAllProcurementLettersResponse(
-  letters: (ProcurementLetter & {
-    createdBy: { name: string } | null
-    currentApprover: { name: string } | null
-    unit: { name: string } | null
-  })[],
+  letters: ProcurementLetterWithRelations[],
   total: number,
   page: number,
   limit: number
 ): GetAllProcurementLettersResponse {
   return {
-    letters: letters.map((letter) => ({
-      ...serializeBigInt(letter), // Mengubah BigInt ke string jika ada
-      // Memastikan relasi tidak null untuk konsistensi
-      createdBy: letter.createdBy || { name: 'Unknown User' },
-      unit: letter.unit || { name: 'Unknown Unit' }
-    })),
+    letters: letters.map(toProcurementLetterResponse), // Menggunakan helper tunggal untuk konsistensi
     pagination: {
       total_data: total,
       page: page,
@@ -60,8 +77,4 @@ export function toAllProcurementLettersResponse(
       total_page: Math.ceil(total / limit)
     }
   }
-}
-
-function serializeBigInt(obj: any) {
-  return JSON.parse(JSON.stringify(obj, (_, value) => (typeof value === 'bigint' ? value.toString() : value)))
 }

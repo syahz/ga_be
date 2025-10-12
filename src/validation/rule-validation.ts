@@ -89,7 +89,25 @@ export class RuleValidation {
    * Skema untuk endpoint: PUT /rules/step/:stepId (UPDATE STEP)
    * Memvalidasi pembaruan role pada satu langkah spesifik.
    */
-  static readonly UPDATE_STEP = z.object({
-    roleId: z.string().min(1, { message: 'Role ID harus diisi.' }).uuid({ message: 'Format Role ID tidak valid.' })
+  static readonly UPDATE_STEPS = z.object({
+    steps: z
+      .array(
+        z.object({
+          // Kita hanya perlu roleId dan stepOrder untuk update
+          stepOrder: z.number().int().min(1).max(3),
+          roleId: z.string().uuid({ message: 'Format Role ID tidak valid.' })
+        })
+      )
+      .length(3, 'Harus ada tepat 3 langkah persetujuan.')
+      .refine(
+        (steps) => {
+          // Validasi: Pastikan roleId unik untuk setiap langkah
+          const roleIds = new Set(steps.map((s) => s.roleId))
+          return roleIds.size === 3
+        },
+        {
+          message: 'Setiap langkah harus memiliki Role yang berbeda.'
+        }
+      )
   })
 }

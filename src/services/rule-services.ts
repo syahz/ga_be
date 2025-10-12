@@ -3,12 +3,12 @@ import { Validation } from '../validation/Validation'
 import { ResponseError } from '../error/response-error'
 import { RuleValidation } from '../validation/rule-validation' // Pastikan ini divalidasi juga
 import {
-  toAllRulesResponse,
-  toRuleWithStepsResponse,
-  RuleWithStepsResponse,
   CreateRuleRequest,
   UpdateRuleRequest,
-  UpdateStepRequest
+  toAllRulesResponse,
+  RuleWithStepsResponse,
+  UpdateRuleStepsRequest,
+  toRuleWithStepsResponse
 } from '../models/rule-model'
 
 /**
@@ -34,6 +34,27 @@ export const getRules = async (page: number, limit: number, search: string) => {
   ])
 
   return toAllRulesResponse(rules, total, page, limit)
+}
+
+/**
+ * GET RULE BY ID: Mengambil detail satu aturan berdasarkan ID.
+ */
+export const getRuleById = async (ruleId: string): Promise<RuleWithStepsResponse> => {
+  const rule = await prismaClient.procurementRule.findUnique({
+    where: { id: ruleId },
+    include: {
+      steps: {
+        include: { role: true },
+        orderBy: { stepOrder: 'asc' }
+      }
+    }
+  })
+
+  if (!rule) {
+    throw new ResponseError(404, 'Aturan tidak ditemukan')
+  }
+
+  return toRuleWithStepsResponse(rule)
 }
 
 /**
@@ -91,20 +112,39 @@ export const updateRuleDetails = async (ruleId: string, request: UpdateRuleReque
 /**
  * UPDATE STEP: Memperbarui satu langkah spesifik di dalam aturan.
  */
-export const updateStepDetails = async (stepId: string, request: UpdateStepRequest): Promise<RuleWithStepsResponse> => {
-  const updateRequest = Validation.validate(RuleValidation.UPDATE_STEP, request)
+export const updateRuleSteps = async (ruleId: string, request: UpdateRuleStepsRequest): Promise<RuleWithStepsResponse> => {
+  const updateRequest = Validation.validate(RuleValidation.UPDATE_STEPS, request)
 
-  const updatedStep = await prismaClient.procurementStep.update({
-    where: { id: stepId },
-    data: { roleId: updateRequest.roleId }
+  const updatedRule = await prismaClient.$transaction(async (tx) => {
+    // Jalankan semua promise update secara paralel
+    await Promise.all(
+      updateRequest.steps.map((step) =>
+        // Menggunakan updateMany, tetapi karena where clause-nya spesifik,
+        // ini efektif hanya akan mengupdate satu record yang cocok.
+        tx.procurementStep.updateMany({
+          // --- PERUBAHAN DI SINI ---
+          // Kita tidak lagi menggunakan format ruleId_stepOrder,
+          // melainkan where clause biasa yang mencari kombinasi keduanya.
+          where: {
+            ruleId: ruleId,
+            stepOrder: step.stepOrder
+          },
+          // --------------------------
+          data: {
+            roleId: step.roleId
+          }
+        })
+      )
+    )
+
+    // Ambil kembali data aturan yang sudah lengkap untuk respons (tidak berubah)
+    return tx.procurementRule.findUniqueOrThrow({
+      where: { id: ruleId },
+      include: { steps: { include: { role: true }, orderBy: { stepOrder: 'asc' } } }
+    })
   })
 
-  const parentRule = await prismaClient.procurementRule.findUniqueOrThrow({
-    where: { id: updatedStep.ruleId },
-    include: { steps: { include: { role: true } } }
-  })
-
-  return toRuleWithStepsResponse(parentRule)
+  return toRuleWithStepsResponse(updatedRule)
 }
 
 /**

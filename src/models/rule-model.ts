@@ -25,8 +25,11 @@ export interface UpdateRuleRequest {
 }
 
 // DTO untuk endpoint: PUT /rules/step/:stepId
-export interface UpdateStepRequest {
-  roleId: string
+export interface UpdateRuleStepsRequest {
+  steps: {
+    stepOrder: number
+    roleId: string
+  }[]
 }
 
 // --- Tipe untuk Response ---
@@ -53,7 +56,7 @@ export type RuleWithStepsResponse = {
 
 // Tipe data untuk response get all, termasuk paginasi
 export type GetAllRulesResponse = {
-  data: RuleWithStepsResponse[]
+  rules: RuleWithStepsResponse[]
   pagination: {
     total_data: number
     page: number
@@ -90,7 +93,7 @@ export function toRuleWithStepsResponse(rule: RuleWithRelations): RuleWithStepsR
 
 export function toAllRulesResponse(rules: RuleWithRelations[], total: number, page: number, limit: number): GetAllRulesResponse {
   return {
-    data: rules.map(toRuleWithStepsResponse),
+    rules: rules.map(toRuleWithStepsResponse),
     pagination: {
       total_data: total,
       page,

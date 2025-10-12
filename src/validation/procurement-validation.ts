@@ -7,15 +7,13 @@ export class ProcurementValidation {
    */
   static readonly CREATE = z.object({
     letterNumber: z.string().min(1, 'Nomor surat tidak boleh kosong').max(100, 'Nomor surat maksimal 100 karakter'),
-
     letterAbout: z.string().min(1, 'Perihal surat tidak boleh kosong').max(255, 'Perihal surat maksimal 255 karakter'),
-
     nominal: z
-      .number()
-      .refine((value) => typeof value === 'number', {
+      .string('Nominal harus berupa angka')
+      .refine((val) => !isNaN(Number(val)), {
         message: 'Nominal harus berupa angka'
       })
-      .positive('Nominal harus angka positif'),
+      .transform((val) => BigInt(val)),
 
     // Menggunakan .refine untuk validasi tanggal yang lebih kompatibel
     incomingLetterDate: z
@@ -25,7 +23,8 @@ export class ProcurementValidation {
         message: 'Format tanggal surat masuk tidak valid'
       }),
 
-    letterFile: z.string().optional()
+    letterFile: z.string().optional(),
+    unitId: z.uuid('unitId harus berupa UUID')
   })
 
   /**
@@ -33,7 +32,6 @@ export class ProcurementValidation {
    * Cocok dengan DTO `ProcessDecisionRequestDto`.
    */
   static readonly PROCESS_DECISION = z.object({
-    // Menghapus objek error dan menggunakan z.enum standar
     decision: z.enum(['APPROVE', 'REJECT', 'REQUEST_REVISION']),
 
     comment: z.string().max(1000, 'Komentar maksimal 1000 karakter').optional()

@@ -20,10 +20,10 @@ export type RoleResponse = {
 export type GetAllRolesResponse = {
   roles: RoleResponse[]
   pagination: {
-    totalData: number
+    total_data: number
     page: number
     limit: number
-    totalPages: number
+    total_page: number
   }
 }
 
@@ -46,10 +46,10 @@ export function toAllRolesResponse(roles: Role[], total: number, page: number, l
   return {
     roles: roles.map((role) => toRoleResponse(role)),
     pagination: {
-      totalData: total,
+      total_data: total,
       page: page,
       limit: limit,
-      totalPages: Math.ceil(total / limit)
+      total_page: Math.ceil(total / limit)
     }
   }
 }

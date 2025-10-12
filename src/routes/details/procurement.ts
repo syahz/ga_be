@@ -1,9 +1,12 @@
 import express from 'express'
-const procurementRoutes = express.Router()
-import { create, getDashboard, processDecision } from '../../controller/procurement-controller'
+import { procurement_letter_upload } from '../../middleware/upload-middleware'
+import { create, getDashboard, processDecision, getProcurementLetterFile } from '../../controller/procurement-controller'
 
-procurementRoutes.post('/', create)
+const procurementRoutes = express.Router()
+
 procurementRoutes.get('/', getDashboard)
+procurementRoutes.post('/', procurement_letter_upload, create)
 procurementRoutes.post('/decision/:letterId', processDecision)
+procurementRoutes.get('/letters/:fileName', getProcurementLetterFile)
 
 export default procurementRoutes

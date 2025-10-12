@@ -1,10 +1,13 @@
 import express from 'express'
-import { create, get, remove, updateRule, updateStep } from '../../controller/rule-controller'
+import { create, get, getById, remove, updateRule, updateStep } from '../../controller/rule-controller'
 
 const ruleRoutes = express.Router()
 
 // GET /api/admin/rules -> Mengambil semua aturan
 ruleRoutes.get('/', get)
+
+// GET /api/admin/rules/:ruleId -> Mengambil satu aturan berdasarkan ID
+ruleRoutes.get('/:ruleId', getById)
 
 // POST /api/admin/rules -> Membuat aturan baru
 ruleRoutes.post('/', create)

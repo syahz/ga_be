@@ -1,11 +1,17 @@
-// src/services/procurement-services.ts
-
+import fs from 'fs'
+import path from 'path'
+import {
+  ProcessDecisionRequestDto,
+  CreateProcurementRequestDto,
+  toProcurementLetterResponse,
+  toAllProcurementLettersResponse
+} from '../models/procurement-model'
+import { logger } from '../utils/logger'
+import { Validation } from '../validation/Validation'
 import { prismaClient } from '../application/database'
 import { ResponseError } from '../error/response-error'
-import { CreateProcurementRequestDto, ProcessDecisionRequestDto, toAllProcurementLettersResponse } from '../models/procurement-model'
 import { UserWithRelations } from '../type/user-request'
 import { ProcurementValidation } from '../validation/procurement-validation'
-import { Validation } from '../validation/Validation'
 
 // --- Helper & Config (Tidak berubah) ---
 const HEAD_OFFICE_ROLES = ['Direktur Keuangan', 'Direktur Operasional', 'Direktur Utama', 'Kadiv Keuangan', 'General Affair']
@@ -28,34 +34,28 @@ export const createProcurementLetter = async (request: CreateProcurementRequestD
     throw new ResponseError(404, 'User not found')
   }
 
-  // 1. Ambil aturan yang sesuai dengan nominal
+  const procurementUnitId = createRequest.unitId
+
   const rule = await prismaClient.procurementRule.findFirst({
     where: {
       minAmount: { lte: nominal },
       OR: [{ maxAmount: { gte: nominal } }, { maxAmount: null }]
     },
     include: {
-      // Sertakan semua langkah yang terkait dengan aturan ini, diurutkan
-      steps: {
-        orderBy: { stepOrder: 'asc' },
-        include: { role: true }
-      }
+      steps: { orderBy: { stepOrder: 'asc' }, include: { role: true } }
     }
   })
 
   if (!rule || rule.steps.length < 2) {
-    // Minimal harus ada 1 langkah CREATE dan 1 langkah REVIEW/APPROVE
-    throw new ResponseError(500, 'Aturan pengadaan untuk nominal ini tidak lengkap atau tidak ditemukan. Minimal harus ada 2 langkah.')
+    throw new ResponseError(500, 'Aturan pengadaan untuk nominal ini tidak lengkap atau tidak ditemukan.')
   }
   const ruleSteps = rule.steps
 
-  // 2. Validasi Creator: Cek langkah pertama (stepOrder: 1)
   const creatorStep = ruleSteps[0]
   if (creatorStep.stepType !== 'CREATE' || creator.roleId !== creatorStep.roleId) {
     throw new ResponseError(403, `Role '${creator.role.name}' tidak berwenang membuat pengadaan senilai ini.`)
   }
 
-  // 3. Tentukan Approver Berikutnya: Ambil langkah kedua (stepOrder: 2)
   const firstApproverStep = ruleSteps[1]
   const nextApproverRole = firstApproverStep.role
 
@@ -64,26 +64,37 @@ export const createProcurementLetter = async (request: CreateProcurementRequestD
     throw new ResponseError(500, 'Unit Head Office tidak ditemukan')
   }
 
+  // Logika Pencarian Approver yang Diperbaiki
   const nextApprover = await prismaClient.user.findFirst({
     where: HEAD_OFFICE_ROLES.includes(nextApproverRole.name)
       ? { roleId: nextApproverRole.id, unitId: headOfficeUnit.id }
-      : { roleId: nextApproverRole.id, unitId: creator.unitId }
+      : { roleId: nextApproverRole.id, unitId: procurementUnitId }
   })
+
   if (!nextApprover) {
-    throw new ResponseError(404, `Approver dengan role '${nextApproverRole.name}' tidak ditemukan.`)
+    const unitForSearch = HEAD_OFFICE_ROLES.includes(nextApproverRole.name)
+      ? headOfficeUnit
+      : await prismaClient.unit.findUnique({ where: { id: procurementUnitId } })
+    throw new ResponseError(404, `Approver dengan role '${nextApproverRole.name}' tidak ditemukan di unit '${unitForSearch?.name}'.`)
   }
 
-  // 4. Buat surat dan log dalam satu transaksi
-  return prismaClient.$transaction(async (tx) => {
+  const letterTransaction = await prismaClient.$transaction(async (tx) => {
     const newLetter = await tx.procurementLetter.create({
       data: {
-        ...createRequest,
+        letterNumber: createRequest.letterNumber,
+        letterAbout: createRequest.letterAbout,
+        letterFile: createRequest.letterFile!,
         incomingLetterDate: new Date(createRequest.incomingLetterDate),
         nominal,
         status: 'PENDING_REVIEW',
-        unitId: creator.unitId,
+        unitId: procurementUnitId,
         createdById: creator.id,
         currentApproverId: nextApprover.id
+      },
+      include: {
+        createdBy: { select: { name: true } },
+        currentApprover: { select: { name: true } },
+        unit: { select: { name: true } }
       }
     })
     await tx.procurementLog.create({
@@ -91,6 +102,9 @@ export const createProcurementLetter = async (request: CreateProcurementRequestD
     })
     return newLetter
   })
+
+  // Gunakan mapper sebelum return untuk mengatasi error BigInt
+  return toProcurementLetterResponse(letterTransaction)
 }
 
 /**
@@ -146,41 +160,43 @@ export const processDecisionLetter = async (letterId: string, request: ProcessDe
   const decisionRequest = Validation.validate(ProcurementValidation.PROCESS_DECISION, request)
   const { decision, comment } = decisionRequest
 
+  // 1. Validasi Pengguna dan Surat
   const approverUser = await prismaClient.user.findUnique({ where: { id: user.id }, include: { role: true } })
   if (!approverUser) throw new ResponseError(404, 'Approver user not found')
 
   const letter = await prismaClient.procurementLetter.findUnique({ where: { id: letterId } })
   if (!letter) throw new ResponseError(404, 'Procurement letter not found.')
-  if (letter.currentApproverId !== approverUser.id) throw new ResponseError(403, 'You are not authorized to process this letter.')
+  if (letter.currentApproverId !== approverUser.id) {
+    // Log untuk debugging jika perlu
+    logger.error(`Authorization failed: User ${approverUser.id} tried to process letter ${letter.id} which belongs to ${letter.currentApproverId}`)
+    throw new ResponseError(403, 'You are not authorized to process this letter.')
+  }
 
-  // Handle Tolak atau Minta Revisi (Logika tidak berubah signifikan)
+  // 2. Handle REJECT atau REQUEST_REVISION
   if (decision === 'REJECT' || decision === 'REQUEST_REVISION') {
     const finalStatus = decision === 'REJECT' ? 'REJECTED' : 'NEEDS_REVISION'
     const logAction = decision === 'REJECT' ? 'REJECTED' : 'REVISION_REQUESTED'
     const nextApproverId = decision === 'REJECT' ? null : letter.createdById
 
-    return prismaClient.$transaction(async (tx) => {
-      const updatedLetter = await tx.procurementLetter.update({
+    const updatedLetter = await prismaClient.$transaction(async (tx) => {
+      const updated = await tx.procurementLetter.update({
         where: { id: letterId },
-        data: { status: finalStatus, currentApproverId: nextApproverId }
+        data: { status: finalStatus, currentApproverId: nextApproverId },
+        include: { createdBy: { select: { name: true } }, currentApprover: { select: { name: true } }, unit: { select: { name: true } } }
       })
       await tx.procurementLog.create({ data: { procurementLetterId: letterId, actorId: approverUser.id, action: logAction, comment } })
-      return updatedLetter
+      return updated
     })
+    return toProcurementLetterResponse(updatedLetter)
   }
 
-  // Handle 'APPROVE'
+  // 3. Handle 'APPROVE'
   const rule = await prismaClient.procurementRule.findFirst({
     where: {
       minAmount: { lte: letter.nominal },
       OR: [{ maxAmount: { gte: letter.nominal } }, { maxAmount: null }]
     },
-    include: {
-      steps: {
-        orderBy: { stepOrder: 'asc' },
-        include: { role: true }
-      }
-    }
+    include: { steps: { orderBy: { stepOrder: 'asc' }, include: { role: true } } }
   })
 
   if (!rule || rule.steps.length === 0) throw new ResponseError(500, 'Configuration error: Approval rule not found.')
@@ -192,14 +208,19 @@ export const processDecisionLetter = async (letterId: string, request: ProcessDe
   const isFinalStep = currentStep.stepOrder === ruleSteps[ruleSteps.length - 1].stepOrder
 
   if (isFinalStep) {
-    // Jika ini adalah langkah terakhir, setujui surat
-    return prismaClient.$transaction(async (tx) => {
-      const updatedLetter = await tx.procurementLetter.update({ where: { id: letterId }, data: { status: 'APPROVED', currentApproverId: null } })
+    // A. Jika ini langkah terakhir, setujui surat
+    const finalLetter = await prismaClient.$transaction(async (tx) => {
+      const updated = await tx.procurementLetter.update({
+        where: { id: letterId },
+        data: { status: 'APPROVED', currentApproverId: null },
+        include: { createdBy: { select: { name: true } }, currentApprover: { select: { name: true } }, unit: { select: { name: true } } }
+      })
       await tx.procurementLog.create({ data: { procurementLetterId: letterId, actorId: approverUser.id, action: 'APPROVED', comment } })
-      return updatedLetter
+      return updated
     })
+    return toProcurementLetterResponse(finalLetter)
   } else {
-    // Jika bukan langkah terakhir, teruskan ke approver berikutnya
+    // B. Jika bukan langkah terakhir, teruskan ke approver berikutnya
     const nextStep = ruleSteps.find((step) => step.stepOrder === currentStep.stepOrder + 1)
     if (!nextStep) throw new ResponseError(500, 'Configuration error: Next approval step not found.')
 
@@ -209,17 +230,46 @@ export const processDecisionLetter = async (letterId: string, request: ProcessDe
     const nextApprover = await prismaClient.user.findFirst({
       where: HEAD_OFFICE_ROLES.includes(nextStep.role.name)
         ? { roleId: nextStep.role.id, unitId: headOfficeUnit.id }
-        : { roleId: nextStep.role.id, unitId: letter.unitId } // Menggunakan unitId dari surat
+        : { roleId: nextStep.role.id, unitId: letter.unitId }
     })
     if (!nextApprover) throw new ResponseError(404, `Next approver with role '${nextStep.role.name}' not found.`)
 
-    return prismaClient.$transaction(async (tx) => {
-      const updatedLetter = await tx.procurementLetter.update({
+    const forwardedLetter = await prismaClient.$transaction(async (tx) => {
+      const updated = await tx.procurementLetter.update({
         where: { id: letterId },
-        data: { status: 'PENDING_APPROVAL', currentApproverId: nextApprover.id }
+        data: { status: 'PENDING_APPROVAL', currentApproverId: nextApprover.id },
+        include: { createdBy: { select: { name: true } }, currentApprover: { select: { name: true } }, unit: { select: { name: true } } }
       })
       await tx.procurementLog.create({ data: { procurementLetterId: letterId, actorId: approverUser.id, action: 'REVIEWED', comment } })
-      return updatedLetter
+      return updated
     })
+    return toProcurementLetterResponse(forwardedLetter)
   }
+}
+
+/**
+ * Mendapatkan file surat pengadaan (Logika tidak berubah).
+ * File disajikan dari direktori upload.
+ * Pastikan untuk mengamankan endpoint ini dengan autentikasi dan otorisasi yang sesuai.
+ */
+
+export const getProcurementLetterPath = async (fileName: string): Promise<string> => {
+  // **SANGAT PENTING: Keamanan Path Traversal**
+  // Pastikan fileName hanya berisi nama file, bukan path seperti '../../etc/passwd'
+  // path.basename() akan mengekstrak hanya bagian nama file dari string.
+  const secureFileName = path.basename(fileName)
+
+  // Tentukan direktori tempat file disimpan
+  const letterDir = path.resolve('uploads/procurement_letters')
+
+  // Gabungkan path direktori dengan nama file yang sudah aman
+  const filePath = path.join(letterDir, secureFileName)
+
+  // Cek apakah file benar-benar ada di server
+  if (!fs.existsSync(filePath)) {
+    throw new ResponseError(404, 'File tidak ditemukan.')
+  }
+
+  // Jika aman dan ada, kembalikan path absolutnya
+  return filePath
 }

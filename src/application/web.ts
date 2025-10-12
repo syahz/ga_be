@@ -14,7 +14,7 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   credentials: true
 }
-// web.use('/uploads', express.static(path.join(__dirname, '../../uploads')))
+web.use('/uploads', express.static(path.join(__dirname, '../../uploads')))
 web.use(cors(corsOptions))
 web.use(cookieParser())
 web.use(express.json())
