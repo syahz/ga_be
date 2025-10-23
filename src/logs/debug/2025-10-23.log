@@ -17,3 +17,42 @@ Please make sure your database server is running at `localhost:3306`.
 2025-10-23 09:13:53 error: JWT verify error: jwt expired
 2025-10-23 09:13:53 error: JWT verify error: jwt expired
 2025-10-23 09:14:18 info: Login successful for user: msfqrohman@gmail.com (ID: ef259c6e-a04d-4005-9d7f-e00c55e8c199). IP: ::1, User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36
+2025-10-23 09:27:08 info: Login successful for user: admin@example.com (ID: 1c3e7bce-2620-4278-9865-5827aba13b2a). IP: ::1, User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36
+2025-10-23 10:28:02 info: Login successful for user: admin@example.com (ID: 1c3e7bce-2620-4278-9865-5827aba13b2a). IP: ::1, User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36
+2025-10-23 11:32:27 error: JWT verify error: jwt expired
+2025-10-23 11:32:27 error: JWT verify error: jwt expired
+2025-10-23 11:32:27 error: JWT verify error: jwt expired
+2025-10-23 11:48:08 info: Google login successful for existing user: msfqrohman@gmail.com
+2025-10-23 11:48:08 info: Google login successful for user: msfqrohman@gmail.com. IP: ::1, User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36
+2025-10-23 11:48:51 debug: {
+  "letterNumber": "62.0021/SPm/BMU/X/2025",
+  "letterAbout": "Pengadaan alat tulis Kantor",
+  "nominal": "1500000",
+  "incomingLetterDate": "2025-10-24",
+  "letterFile": "1761194931127.pdf",
+  "unitId": "9b8091bd-e169-4afb-b131-079bce97d375"
+}
+2025-10-23 11:49:01 debug: {
+  "letterNumber": "62.0021/SPm/BMU/X/2025",
+  "letterAbout": "Pengadaan alat tulis Kantor",
+  "nominal": "1500000",
+  "incomingLetterDate": "2025-10-24",
+  "letterFile": "1761194941415.pdf",
+  "unitId": "9b8091bd-e169-4afb-b131-079bce97d375"
+}
+2025-10-23 11:50:31 debug: {
+  "letterNumber": "62.0021/SPm/BMU/X/2025",
+  "letterAbout": "Pengadaan alat tulis Kantor",
+  "nominal": "1500000",
+  "incomingLetterDate": "2025-10-24",
+  "letterFile": "1761195031091.pdf",
+  "unitId": "9b8091bd-e169-4afb-b131-079bce97d375"
+}
+2025-10-23 11:50:48 info: Login successful for user: admin@example.com (ID: 1c3e7bce-2620-4278-9865-5827aba13b2a). IP: ::1, User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36
+2025-10-23 12:04:09 error: JWT verify error: jwt expired
+2025-10-23 12:04:40 info: Login successful for user: admin@example.com (ID: 1c3e7bce-2620-4278-9865-5827aba13b2a). IP: ::1, User-Agent: PostmanRuntime/7.48.0
+2025-10-23 14:23:36 error: JWT verify error: jwt expired
+2025-10-23 14:48:15 error: JWT verify error: jwt expired
+2025-10-23 14:48:15 error: JWT verify error: jwt expired
+2025-10-23 14:49:24 debug: User Role:
+2025-10-23 14:50:41 info: Login successful for user: manager.blc.bmu@gmail.com (ID: 8bc13145-2bd5-42d9-b812-641dbbcd1377). IP: ::1, User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36

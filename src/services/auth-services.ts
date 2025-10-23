@@ -127,42 +127,29 @@ export const loginWithGoogle = async (user: User & { role: Role; unit: Unit }, r
 }
 
 export const refreshAuth = async (rt: string | undefined, res: Response) => {
-  if (!rt) throw new Error('No refresh token')
+  if (!rt) {
+    throw new Error('No refresh token')
+  }
 
   const tokenHash = hashToken(rt)
   const stored = await prisma.refreshToken.findUnique({
-    where: { tokenHash },
-    include: { user: true }
+    where: { tokenHash }
   })
 
+  // Jika token tidak ada, sudah dicabut (dari logout), atau kedaluwarsa
   if (!stored || stored.revoked || stored.expiresAt < new Date()) {
-    if (stored && stored.revoked) {
-      await prisma.refreshToken.updateMany({
-        where: { userId: stored.userId },
-        data: { revoked: true }
-      })
-      console.warn(`Refresh token reuse detected for user ${stored.userId}`)
+    res.clearCookie('refresh_token', { path: '/' })
+    res.clearCookie('user_unit', { path: '/' })
+    res.clearCookie('user_role', { path: '/' })
+    if (process.env.CSRF_ENABLED === 'true') {
+      res.clearCookie('csrf_token', { path: '/' })
     }
-
-    res.clearCookie('refresh_token', { path: '/auth/refresh' })
-    if (process.env.CSRF_ENABLED === 'true') res.clearCookie('csrf_token', { path: '/' })
-    throw new Error('Invalid refresh token')
+    throw new Error('Invalid or expired refresh token')
   }
-
-  await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } })
 
   const newPlain = createRefreshToken()
   const newHash = hashToken(newPlain)
   const newExpires = new Date(Date.now() + REFRESH_EXPIRES_SECONDS * 1000)
-
-  const newTokenRow = await prisma.refreshToken.create({
-    data: { userId: stored.userId, tokenHash: newHash, expiresAt: newExpires }
-  })
-
-  await prisma.refreshToken.update({
-    where: { id: stored.id },
-    data: { replacedBy: newTokenRow.id }
-  })
 
   const user = await prisma.user.findUnique({
     where: { id: stored.userId },
@@ -171,27 +158,52 @@ export const refreshAuth = async (rt: string | undefined, res: Response) => {
       unit: true
     }
   })
-  const role = user!.role.name
-  const unit = user!.unit.name
-  const accessToken = signAccessToken({ userId: user!.id, role })
 
-  //Set Cookies refresh token
+  if (!user) {
+    throw new Error('User for token not found')
+  }
+
+  try {
+    await prisma.$transaction([
+      // 1. Hapus token lama yang baru saja kita gunakan
+      prisma.refreshToken.delete({
+        where: { id: stored.id }
+      }),
+
+      // 2. Buat token baru untuk menggantikannya
+      prisma.refreshToken.create({
+        data: {
+          userId: stored.userId,
+          tokenHash: newHash,
+          expiresAt: newExpires
+        }
+      })
+    ])
+  } catch (error) {
+    console.error('Refresh token transaction failed', error)
+    throw new Error('Failed to rotate refresh token')
+  }
+
+  const role = user.role.name
+  const unit = user.unit.name
+  const accessToken = signAccessToken({ userId: user.id, role })
+
+  // Set semua cookie baru
   res.cookie('refresh_token', newPlain, cookieOptions())
-  // Set user unit cookie
   res.cookie('user_unit', unit, {
     maxAge: REFRESH_EXPIRES_SECONDS * 1000,
     path: '/',
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production'
   })
-  // Set user role cookie
   res.cookie('user_role', role, {
     maxAge: REFRESH_EXPIRES_SECONDS * 1000,
     path: '/',
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production'
   })
-  // Set CSRF token cookie if enabled
+
+  // Set CSRF token baru jika diaktifkan
   if (process.env.CSRF_ENABLED === 'true') {
     const csrfToken = createRefreshToken().slice(0, 32)
     res.cookie('csrf_token', csrfToken, {
@@ -203,7 +215,16 @@ export const refreshAuth = async (rt: string | undefined, res: Response) => {
     })
   }
 
-  return { accessToken, user: { id: user!.id, name: user!.name, email: user!.email, role, unit: user!.unit.name } }
+  return {
+    accessToken,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role,
+      unit: user.unit.name
+    }
+  }
 }
 
 export const logoutAuth = async (rt: string | undefined, res: Response) => {

@@ -111,6 +111,14 @@ export const createProcurementLetter = async (request: CreateProcurementRequestD
   logger.debug(JSON.stringify(createRequest, (_, v) => (typeof v === 'bigint' ? v.toString() : v), 2))
   const nominal = typeof (createRequest as any).nominal === 'bigint' ? (createRequest as any).nominal : BigInt((createRequest as any).nominal)
 
+  // Prevent unique constraint violation early by checking existing letter number
+  const existingByNumber = await prismaClient.procurementLetter.findUnique({
+    where: { letterNumber: createRequest.letterNumber }
+  })
+  if (existingByNumber) {
+    throw new ResponseError(409, 'Nomor surat sudah digunakan. Gunakan nomor surat yang berbeda.')
+  }
+
   const creator = await prismaClient.user.findUnique({
     where: { id: user.id },
     include: { role: true, unit: true }
