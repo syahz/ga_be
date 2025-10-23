@@ -3,9 +3,10 @@ import {
   create,
   update,
   getDetails,
-  getDashboard,
   getProcurements,
   processDecision,
+  getDashboardUser,
+  getDashboardAdmin,
   getHistoryProcurements
 } from '../../controller/procurement-controller'
 import { procurement_letter_upload } from '../../middleware/upload-middleware'
@@ -13,9 +14,10 @@ import { procurement_letter_upload } from '../../middleware/upload-middleware'
 const procurementRoutes = express.Router()
 
 procurementRoutes.get('/', getProcurements)
-procurementRoutes.get('/dashboard', getDashboard)
-procurementRoutes.get('/history', getHistoryProcurements)
 procurementRoutes.get('/:letterId', getDetails)
+procurementRoutes.get('/dashboard', getDashboardUser)
+procurementRoutes.get('/history', getHistoryProcurements)
+procurementRoutes.get('/dashboard-admin', getDashboardAdmin)
 procurementRoutes.post('/', procurement_letter_upload, create)
 procurementRoutes.post('/decision/:letterId', processDecision)
 procurementRoutes.put('/:letterId', procurement_letter_upload, update)

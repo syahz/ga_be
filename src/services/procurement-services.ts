@@ -2,16 +2,17 @@ import fs from 'fs'
 import path from 'path'
 import { LogAction } from '@prisma/client'
 import {
+  ProgressResponse,
+  toProgressResponse,
   toHistoryLogResponse,
+  ProcurementLogFormData,
   ProcessDecisionRequestDto,
   ProcurementLetterResponse,
   CreateProcurementRequestDto,
   UpdateProcurementRequestDto,
   toProcurementLetterResponse,
   toAllProcurementLettersResponse,
-  toProgressResponse,
-  ProcurementLogFormData,
-  ProgressResponse
+  toDashboardProcurementLettersResponse
 } from '../models/procurement-model'
 import { logger } from '../utils/logger'
 import { Validation } from '../validation/Validation'
@@ -29,7 +30,7 @@ const HEAD_OFFICE_CODE = 'HO'
 /**
  * Mengambil data dashboard untuk user tertentu.
  */
-export const getDashboardUser = async (user: UserWithRelations) => {
+export const getDashboardUserServices = async (user: UserWithRelations) => {
   const unit = await prismaClient.unit.findUnique({ where: { id: user.unitId } })
   if (!unit) {
     throw new ResponseError(404, 'Unit not found for the user')
@@ -44,6 +45,61 @@ export const getDashboardUser = async (user: UserWithRelations) => {
     }
   })
   return dashboardData.map(toProcurementLetterResponse)
+}
+
+/**
+ * Mengambil data dashboard untuk admin.
+ */
+export const getDashboardAdminServices = async (page: number, limit: number, search: string, unitId?: string) => {
+  const skip = (page - 1) * limit
+
+  const baseWhere: any = {
+    ...(unitId ? { unitId } : {})
+  }
+
+  let searchFilter = {}
+  if (search) {
+    const isNumeric = !isNaN(parseFloat(search)) && isFinite(Number(search))
+    searchFilter = {
+      OR: [
+        { letterNumber: { contains: search } },
+        { letterAbout: { contains: search } },
+        ...(isNumeric ? [{ nominal: { equals: BigInt(search) } }] : [])
+      ]
+    }
+  }
+
+  const where = {
+    ...baseWhere,
+    ...(search && { AND: [searchFilter] })
+  }
+
+  const [totalLetters, letters] = await prismaClient.$transaction([
+    prismaClient.procurementLetter.count({ where }),
+    prismaClient.procurementLetter.findMany({
+      where,
+      include: {
+        createdBy: { select: { name: true } },
+        currentApprover: { select: { name: true } },
+        unit: { select: { name: true } }
+      },
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' }
+    })
+  ])
+
+  const totalInUnit = unitId ? await prismaClient.procurementLetter.count({ where: { unitId } }) : await prismaClient.procurementLetter.count()
+
+  // Summary counts (scoped by unitId if provided), ignoring search/pagination
+  const approvedWhere: any = unitId ? { unitId, status: 'APPROVED' } : { status: 'APPROVED' }
+  const rejectedWhere: any = unitId ? { unitId, status: 'REJECTED' } : { status: 'REJECTED' }
+  const [totalApproved, totalRejected] = await prismaClient.$transaction([
+    prismaClient.procurementLetter.count({ where: approvedWhere }),
+    prismaClient.procurementLetter.count({ where: rejectedWhere })
+  ])
+
+  return toDashboardProcurementLettersResponse(letters, totalLetters, page, limit, totalInUnit, totalApproved, totalRejected)
 }
 
 /**
@@ -140,7 +196,6 @@ export const createProcurementLetter = async (request: CreateProcurementRequestD
  * Mengambil daftar surat untuk dashboard user (Logika tidak berubah).
  */
 export const getProcurementLetters = async (user: UserWithRelations, page: number, limit: number, search: string) => {
-  // ... (Tidak ada perubahan di fungsi ini)
   const skip = (page - 1) * limit
 
   const baseWhere = {

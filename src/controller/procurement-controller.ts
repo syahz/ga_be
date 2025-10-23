@@ -1,6 +1,7 @@
 import {
   getHistoryLogs,
-  getDashboardUser,
+  getDashboardUserServices,
+  getDashboardAdminServices,
   getProcurementLetters,
   getProcurementDetails,
   processDecisionLetter,
@@ -10,21 +11,37 @@ import {
   getProcurementLetterPath
 } from '../services/procurement-services'
 import { ResponseError } from '../error/response-error'
-import { NextFunction, Response, Request, RequestHandler } from 'express'
 import { UserRequest, UserWithRelations } from '../type/user-request'
+import { NextFunction, Response, Request, RequestHandler } from 'express'
 import { CreateProcurementRequestDto, ProcessDecisionRequestDto, UpdateProcurementRequestDto } from '../models/procurement-model'
 
 //Controller untuk mendapatkan dashboard user (GET)
-export const getDashboard: RequestHandler = async (req, res: Response, next: NextFunction) => {
+export const getDashboardUser: RequestHandler = async (req, res: Response, next: NextFunction) => {
   try {
     const user = (req as UserRequest).user! as UserWithRelations
-    const response = await getDashboardUser(user)
+    const response = await getDashboardUserServices(user)
     res.status(200).json({ data: response })
   } catch (e) {
     next(e)
   }
 }
 
+// Controller untuk mendapatkan dashboard admin (GET)
+export const getDashboardAdmin: RequestHandler = async (req, res: Response, next: NextFunction) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1
+    const limit = parseInt(req.query.limit as string) || 10
+    const search = (req.query.search as string) || ''
+
+    // Parsing filter opsional
+    const unitId = (req.query.unitId as string) || undefined
+
+    const response = await getDashboardAdminServices(page, limit, search, unitId)
+    res.status(200).json({ data: response })
+  } catch (e) {
+    next(e)
+  }
+}
 // Controller untuk mendapatkan surat masuk pengadaan (GET)
 export const getProcurements: RequestHandler = async (req, res: Response, next: NextFunction) => {
   try {

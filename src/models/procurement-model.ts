@@ -65,6 +65,23 @@ export type GetAllProcurementLettersResponse = {
     total_page: number
   }
 }
+
+export type DashboardSummary = {
+  total_in_unit: number
+  total_approved: number
+  total_rejected: number
+}
+
+export type GetDashboardProcurementsResponse = {
+  summary: DashboardSummary
+  letters: ProcurementLetterResponse[]
+  pagination: {
+    total_data: number
+    page: number
+    limit: number
+    total_page: number
+  }
+}
 /**
  * Helper function untuk mengubah SATU objek surat dari Prisma
  * menjadi format JSON response yang aman (menangani BigInt dan relasi null).
@@ -79,6 +96,30 @@ export function toProcurementLetterResponse(letter: ProcurementLetterWithRelatio
   }
 }
 
+/**
+ * Helper function untuk mengubah hasil query (banyak surat)
+ * menjadi format response yang kita inginkan, lengkap dengan paginasi.
+ */
+export function toDashboardProcurementLettersResponse(
+  letters: ProcurementLetterWithRelations[],
+  total: number,
+  page: number,
+  limit: number,
+  totalInUnit: number,
+  totalApproved: number,
+  totalRejected: number
+): GetDashboardProcurementsResponse {
+  return {
+    summary: { total_in_unit: totalInUnit, total_approved: totalApproved, total_rejected: totalRejected },
+    letters: letters.map(toProcurementLetterResponse),
+    pagination: {
+      total_data: total,
+      page: page,
+      limit: limit,
+      total_page: Math.ceil(total / limit)
+    }
+  }
+}
 /**
  * Helper function untuk mengubah hasil query (banyak surat)
  * menjadi format response yang kita inginkan, lengkap dengan paginasi.
