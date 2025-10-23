@@ -86,7 +86,7 @@ export const loginAuth = async (email: string, password: string, res: Response) 
     })
   }
 
-  return { accessToken, user: { id: user.id, name: user.name, email: user.email, role } }
+  return { accessToken, user: { id: user.id, name: user.name, email: user.email, role, unit: user.unit.name } }
 }
 
 export const loginWithGoogle = async (user: User & { role: Role; unit: Unit }, res: Response) => {
@@ -123,7 +123,7 @@ export const loginWithGoogle = async (user: User & { role: Role; unit: Unit }, r
     })
   }
 
-  return { accessToken, user: { id: user.id, name: user.name, email: user.email, role } }
+  return { accessToken, user: { id: user.id, name: user.name, email: user.email, role, unit: user.unit.name } }
 }
 
 export const refreshAuth = async (rt: string | undefined, res: Response) => {
@@ -203,7 +203,7 @@ export const refreshAuth = async (rt: string | undefined, res: Response) => {
     })
   }
 
-  return { accessToken, user: { id: user!.id, name: user!.name, email: user!.email, role } }
+  return { accessToken, user: { id: user!.id, name: user!.name, email: user!.email, role, unit: user!.unit.name } }
 }
 
 export const logoutAuth = async (rt: string | undefined, res: Response) => {

@@ -32,4 +32,4 @@ export const procurement_letter_upload = multer({
   storage,
   fileFilter,
   limits: { fileSize: 5 * 1024 * 1024 } // max 5MB
-}).single('letter_file')
+}).single('letterFile')

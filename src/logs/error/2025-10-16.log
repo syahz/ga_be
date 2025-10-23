@@ -1,0 +1,53 @@
+2025-10-16 08:17:47 error: uncaughtException: Unexpected ( at 10, expected END: https://git.new/pathToRegexpError
+TypeError: Unexpected ( at 10, expected END: https://git.new/pathToRegexpError
+    at Iter.consume (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:205:11)
+    at consume (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:315:10)
+    at parse (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:320:18)
+    at D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:503:40
+    at Array.map (<anonymous>)
+    at pathToRegexp (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:502:23)
+    at Object.match (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:461:28)
+    at matcher (D:\BMU\GA\BE\node_modules\router\lib\layer.js:86:23)
+    at new Layer (D:\BMU\GA\BE\node_modules\router\lib\layer.js:93:62)
+    at Function.route (D:\BMU\GA\BE\node_modules\router\index.js:428:17)
+2025-10-16 08:23:18 error: uncaughtException: Unexpected ( at 10, expected END: https://git.new/pathToRegexpError
+TypeError: Unexpected ( at 10, expected END: https://git.new/pathToRegexpError
+    at Iter.consume (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:205:11)
+    at consume (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:315:10)
+    at parse (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:320:18)
+    at D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:503:40
+    at Array.map (<anonymous>)
+    at pathToRegexp (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:502:23)
+    at Object.match (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:461:28)
+    at matcher (D:\BMU\GA\BE\node_modules\router\lib\layer.js:86:23)
+    at new Layer (D:\BMU\GA\BE\node_modules\router\lib\layer.js:93:62)
+    at Function.route (D:\BMU\GA\BE\node_modules\router\index.js:428:17)
+2025-10-16 08:28:06 error: uncaughtException: Unexpected ( at 10, expected END: https://git.new/pathToRegexpError
+TypeError: Unexpected ( at 10, expected END: https://git.new/pathToRegexpError
+    at Iter.consume (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:205:11)
+    at consume (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:315:10)
+    at parse (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:320:18)
+    at D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:503:40
+    at Array.map (<anonymous>)
+    at pathToRegexp (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:502:23)
+    at Object.match (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:461:28)
+    at matcher (D:\BMU\GA\BE\node_modules\router\lib\layer.js:86:23)
+    at new Layer (D:\BMU\GA\BE\node_modules\router\lib\layer.js:93:62)
+    at Function.route (D:\BMU\GA\BE\node_modules\router\index.js:428:17)
+2025-10-16 08:30:44 error: uncaughtException: Unexpected ( at 10, expected END: https://git.new/pathToRegexpError
+TypeError: Unexpected ( at 10, expected END: https://git.new/pathToRegexpError
+    at Iter.consume (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:205:11)
+    at consume (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:315:10)
+    at parse (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:320:18)
+    at D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:503:40
+    at Array.map (<anonymous>)
+    at pathToRegexp (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:502:23)
+    at Object.match (D:\BMU\GA\BE\node_modules\path-to-regexp\src\index.ts:461:28)
+    at matcher (D:\BMU\GA\BE\node_modules\router\lib\layer.js:86:23)
+    at new Layer (D:\BMU\GA\BE\node_modules\router\lib\layer.js:93:62)
+    at Function.route (D:\BMU\GA\BE\node_modules\router\index.js:428:17)
+2025-10-16 08:54:12 error: JWT verify error: jwt expired
+2025-10-16 09:35:15 error: JWT verify error: jwt expired
+2025-10-16 11:55:01 error: JWT verify error: jwt expired
+2025-10-16 12:21:11 error: JWT verify error: jwt expired
+2025-10-16 12:21:11 error: JWT verify error: jwt expired

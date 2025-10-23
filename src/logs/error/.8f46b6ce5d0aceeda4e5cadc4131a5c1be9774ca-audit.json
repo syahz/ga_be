@@ -6,29 +6,29 @@
     "auditLog": "D:\\BMU\\GA\\BE\\src\\logs\\error\\.8f46b6ce5d0aceeda4e5cadc4131a5c1be9774ca-audit.json",
     "files": [
         {
-            "date": 1759887373060,
-            "name": "D:\\BMU\\GA\\BE\\src\\logs\\error\\2025-10-08.log",
-            "hash": "7fffc623b9d57b2f417760ce27f9d192ae0159183ee23387a9ce496a47e20d63"
+            "date": 1760577466393,
+            "name": "D:\\BMU\\GA\\BE\\src\\logs\\error\\2025-10-16.log",
+            "hash": "0f1f4d6fe7d505cfe062ac4a1de89ad116620ad4d631bc54c5f5ed1c4e0064c7"
         },
         {
-            "date": 1759971557891,
-            "name": "D:\\BMU\\GA\\BE\\src\\logs\\error\\2025-10-09.log",
-            "hash": "4d54193ed3d8d4c6c2831247ad5593210a2ed16bab8c500f7a9f0a648629c868"
+            "date": 1760859173763,
+            "name": "D:\\BMU\\GA\\BE\\src\\logs\\error\\2025-10-19.log",
+            "hash": "e4d4fd8e31f49c624c6ebbdf31d1f274f45d1280be15f4aaae87d1ef842dcfdb"
         },
         {
-            "date": 1760058753913,
-            "name": "D:\\BMU\\GA\\BE\\src\\logs\\error\\2025-10-10.log",
-            "hash": "b527d278ee32f009aee00778d8aeca2c82f9cc1955c43e1c92c5cd7f87f79017"
+            "date": 1760923762388,
+            "name": "D:\\BMU\\GA\\BE\\src\\logs\\error\\2025-10-20.log",
+            "hash": "f3c67195177136e131bb3a78c0fb5c354c9635a394c6d697557c992a1ee14d1a"
         },
         {
-            "date": 1760132901917,
-            "name": "D:\\BMU\\GA\\BE\\src\\logs\\error\\2025-10-11.log",
-            "hash": "d5d6ccd981b954cdb11a480639d7cd27b5d18d7783cc16f22cb37f9061d5f84d"
+            "date": 1761017701577,
+            "name": "D:\\BMU\\GA\\BE\\src\\logs\\error\\2025-10-21.log",
+            "hash": "03c6659ab193e0b04a55272a48945c2ab0122d73ac882537eb7e62dae44e004c"
         },
         {
-            "date": 1760257088782,
-            "name": "D:\\BMU\\GA\\BE\\src\\logs\\error\\2025-10-12.log",
-            "hash": "270810ea395d8318376217cc095901831f58959f28297599b2faa6064b326e48"
+            "date": 1761182574555,
+            "name": "D:\\BMU\\GA\\BE\\src\\logs\\error\\2025-10-23.log",
+            "hash": "1dcf7ee769503bbe68e69141061f53a55972c885567669e55fa24ec006023a1d"
         }
     ],
     "hashType": "sha256"

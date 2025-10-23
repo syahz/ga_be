@@ -1,10 +1,17 @@
 import fs from 'fs'
 import path from 'path'
+import { LogAction } from '@prisma/client'
 import {
+  toHistoryLogResponse,
   ProcessDecisionRequestDto,
+  ProcurementLetterResponse,
   CreateProcurementRequestDto,
+  UpdateProcurementRequestDto,
   toProcurementLetterResponse,
-  toAllProcurementLettersResponse
+  toAllProcurementLettersResponse,
+  toProgressResponse,
+  ProcurementLogFormData,
+  ProgressResponse
 } from '../models/procurement-model'
 import { logger } from '../utils/logger'
 import { Validation } from '../validation/Validation'
@@ -20,11 +27,33 @@ const HEAD_OFFICE_CODE = 'HO'
 // --- Service Functions ---
 
 /**
+ * Mengambil data dashboard untuk user tertentu.
+ */
+export const getDashboardUser = async (user: UserWithRelations) => {
+  const unit = await prismaClient.unit.findUnique({ where: { id: user.unitId } })
+  if (!unit) {
+    throw new ResponseError(404, 'Unit not found for the user')
+  }
+
+  const dashboardData = await prismaClient.procurementLetter.findMany({
+    where: { unitId: unit?.id },
+    include: {
+      createdBy: { select: { name: true } },
+      currentApprover: { select: { name: true } },
+      unit: { select: { name: true } }
+    }
+  })
+  return dashboardData.map(toProcurementLetterResponse)
+}
+
+/**
  * Membuat surat pengadaan baru menggunakan model ProcurementRule dan ProcurementStep.
  */
 export const createProcurementLetter = async (request: CreateProcurementRequestDto, user: UserWithRelations) => {
   const createRequest = Validation.validate(ProcurementValidation.CREATE, request)
-  const nominal = BigInt(createRequest.nominal)
+  // BigInt-safe logging of validated payload
+  logger.debug(JSON.stringify(createRequest, (_, v) => (typeof v === 'bigint' ? v.toString() : v), 2))
+  const nominal = typeof (createRequest as any).nominal === 'bigint' ? (createRequest as any).nominal : BigInt((createRequest as any).nominal)
 
   const creator = await prismaClient.user.findUnique({
     where: { id: user.id },
@@ -110,7 +139,7 @@ export const createProcurementLetter = async (request: CreateProcurementRequestD
 /**
  * Mengambil daftar surat untuk dashboard user (Logika tidak berubah).
  */
-export const getDashboardLetters = async (user: UserWithRelations, page: number, limit: number, search: string) => {
+export const getProcurementLetters = async (user: UserWithRelations, page: number, limit: number, search: string) => {
   // ... (Tidak ada perubahan di fungsi ini)
   const skip = (page - 1) * limit
 
@@ -123,8 +152,8 @@ export const getDashboardLetters = async (user: UserWithRelations, page: number,
     const isNumeric = !isNaN(parseFloat(search)) && isFinite(Number(search))
     searchFilter = {
       OR: [
-        { letterNumber: { contains: search, mode: 'insensitive' } },
-        { letterAbout: { contains: search, mode: 'insensitive' } },
+        { letterNumber: { contains: search } },
+        { letterAbout: { contains: search } },
         ...(isNumeric ? [{ nominal: { equals: BigInt(search) } }] : [])
       ]
     }
@@ -151,6 +180,78 @@ export const getDashboardLetters = async (user: UserWithRelations, page: number,
   ])
 
   return toAllProcurementLettersResponse(letters, totalLetters, page, limit)
+}
+
+/**
+ * Mengambil daftar surat pengadaan sebagai history logs
+ */
+export const getHistoryLogs = async (user: UserWithRelations, page: number, limit: number, search: string) => {
+  const skip = (page - 1) * limit
+
+  // 1. Bangun filter pencarian untuk relasi surat dan field log
+  let procurementLetterFilter: any = {}
+  const logFieldFilters: any[] = []
+  if (search) {
+    const isNumeric = !isNaN(parseFloat(search)) && isFinite(Number(search))
+    procurementLetterFilter = {
+      OR: [
+        { letterNumber: { contains: search } },
+        { letterAbout: { contains: search } },
+        ...(isNumeric ? [{ nominal: { equals: BigInt(search) } }] : [])
+      ]
+    }
+
+    // Log fields: action (enum, partial match via IN), comment (contains), timestamp (day range)
+    const sLower = search.toLowerCase()
+    const actionCandidates = (Object.values(LogAction) as unknown as string[]).filter((a) => a.toLowerCase().includes(sLower))
+    if (actionCandidates.length > 0) {
+      logFieldFilters.push({ action: { in: actionCandidates as any } })
+    }
+    logFieldFilters.push({ comment: { contains: search } })
+
+    const parsed = new Date(search)
+    if (!isNaN(parsed.getTime())) {
+      const start = new Date(parsed)
+      start.setHours(0, 0, 0, 0)
+      const end = new Date(parsed)
+      end.setHours(23, 59, 59, 999)
+      logFieldFilters.push({ timestamp: { gte: start, lte: end } })
+    }
+  }
+
+  // 2. WHERE utama untuk ProcurementLog: actorId wajib; jika ada search, OR antara relasi surat dan field log
+  const where: any = { actorId: user.id }
+  if (search) {
+    const orClauses: any[] = []
+    orClauses.push({ procurementLetter: procurementLetterFilter })
+    if (logFieldFilters.length > 0) {
+      orClauses.push({ OR: logFieldFilters })
+    }
+    where.AND = [{ OR: orClauses }]
+  }
+
+  // 3. Lakukan query langsung ke ProcurementLog.
+  const [totalLogs, logs] = await prismaClient.$transaction([
+    prismaClient.procurementLog.count({ where }),
+    prismaClient.procurementLog.findMany({
+      where,
+      include: {
+        // Sertakan detail surat untuk setiap log
+        procurementLetter: {
+          include: {
+            createdBy: { select: { name: true } },
+            currentApprover: { select: { name: true } },
+            unit: { select: { name: true } }
+          }
+        }
+      },
+      skip,
+      take: limit,
+      orderBy: { timestamp: 'desc' }
+    })
+  ])
+
+  return toHistoryLogResponse(logs, totalLogs, page, limit)
 }
 
 /**
@@ -248,14 +349,10 @@ export const processDecisionLetter = async (letterId: string, request: ProcessDe
 }
 
 /**
- * Mendapatkan file surat pengadaan (Logika tidak berubah).
+ * Mendapatkan file surat pengadaan.
  * File disajikan dari direktori upload.
- * Pastikan untuk mengamankan endpoint ini dengan autentikasi dan otorisasi yang sesuai.
  */
-
 export const getProcurementLetterPath = async (fileName: string): Promise<string> => {
-  // **SANGAT PENTING: Keamanan Path Traversal**
-  // Pastikan fileName hanya berisi nama file, bukan path seperti '../../etc/passwd'
   // path.basename() akan mengekstrak hanya bagian nama file dari string.
   const secureFileName = path.basename(fileName)
 
@@ -272,4 +369,163 @@ export const getProcurementLetterPath = async (fileName: string): Promise<string
 
   // Jika aman dan ada, kembalikan path absolutnya
   return filePath
+}
+
+/**
+ * Memperbarui surat pengadaan yang sudah ada.
+ * Hanya pembuat asli yang dapat mengedit surat dengan status 'NEEDS_REVISION'.
+ * Jika ada file baru diunggah, file lama akan dihapus dari server.
+ * Setelah revisi, status surat kembali ke 'PENDING_REVIEW' dan harus di-assign ulang ke approver pertama.
+ */
+export const updateProcurementLetter = async (
+  letterId: string,
+  request: UpdateProcurementRequestDto,
+  user: UserWithRelations
+): Promise<ProcurementLetterResponse> => {
+  const updateRequest = Validation.validate(ProcurementValidation.UPDATE, request)
+
+  // 1. Cari surat yang akan diupdate
+  const existingLetter = await prismaClient.procurementLetter.findUnique({
+    where: { id: letterId }
+  })
+
+  if (!existingLetter) {
+    throw new ResponseError(404, 'Surat pengadaan tidak ditemukan.')
+  }
+
+  // 2. Otorisasi: Pastikan hanya pembuat asli yang bisa mengedit saat status 'NEEDS_REVISION'
+  if (existingLetter.createdById !== user.id || existingLetter.status !== 'NEEDS_REVISION') {
+    throw new ResponseError(403, 'Anda tidak berwenang untuk mengedit pengajuan ini.')
+  }
+
+  // 3. Logika Hapus File Lama
+  // Cek jika ada file baru yang diunggah (`letterFile` di request tidak kosong)
+  // DAN file lama memang ada di record database.
+  if (updateRequest.letterFile && existingLetter.letterFile) {
+    try {
+      const oldFilePath = path.join('uploads/procurement_letters/', existingLetter.letterFile)
+      await fs.promises.unlink(oldFilePath)
+      logger.info(`Old file deleted: ${oldFilePath}`)
+    } catch (error) {
+      logger.warn(`Failed to delete old file, it may not exist: ${existingLetter.letterFile}`, error)
+    }
+  }
+
+  // 4. Update data di database
+  // Setelah direvisi, status kembali menjadi PENDING_REVIEW dan harus di-assign kembali ke approver pertama
+  const nominal = typeof (updateRequest as any).nominal === 'bigint' ? (updateRequest as any).nominal : BigInt((updateRequest as any).nominal)
+  const rule = await prismaClient.procurementRule.findFirst({
+    where: {
+      minAmount: { lte: nominal },
+      OR: [{ maxAmount: { gte: nominal } }, { maxAmount: null }]
+    },
+    include: { steps: { orderBy: { stepOrder: 'asc' }, include: { role: true } } }
+  })
+  if (!rule) {
+    throw new ResponseError(500, 'Aturan pengadaan untuk nominal ini tidak ditemukan.')
+  }
+  const firstApproverStep = rule.steps[1]
+  const nextApprover = await prismaClient.user.findFirst({
+    where: HEAD_OFFICE_ROLES.includes(firstApproverStep.role.name)
+      ? { roleId: firstApproverStep.role.id, unit: { code: HEAD_OFFICE_CODE } }
+      : { roleId: firstApproverStep.role.id, unitId: existingLetter.unitId }
+  })
+  if (!nextApprover) {
+    throw new ResponseError(404, 'Approver berikutnya tidak ditemukan.')
+  }
+
+  const updatedLetter = await prismaClient.procurementLetter.update({
+    where: { id: letterId },
+    data: {
+      letterNumber: updateRequest.letterNumber,
+      letterAbout: updateRequest.letterAbout,
+      incomingLetterDate: new Date(updateRequest.incomingLetterDate),
+      nominal,
+      ...(updateRequest.letterFile ? { letterFile: updateRequest.letterFile } : {}),
+      status: 'PENDING_REVIEW',
+      currentApproverId: nextApprover.id
+    },
+    include: {
+      createdBy: { select: { name: true } },
+      currentApprover: { select: { name: true } },
+      unit: { select: { name: true } }
+    }
+  })
+
+  await prismaClient.procurementLog.create({
+    data: { procurementLetterId: updatedLetter.id, actorId: user.id, action: 'SUBMITTED', comment: 'Pengadaan direvisi dan diajukan kembali.' }
+  })
+
+  return toProcurementLetterResponse(updatedLetter)
+}
+
+/**
+ * Mendapatkan detail surat pengadaan berdasarkan ID surat.
+ */
+export const getProcurementDetails = async (user: UserWithRelations, letterId: string) => {
+  const letter = await prismaClient.procurementLetter.findUnique({
+    where: { id: letterId }
+  })
+  if (!letter) {
+    throw new ResponseError(404, 'Procurement letter not found')
+  }
+  if (letter.createdById !== user.id && letter.currentApproverId !== user.id) {
+    throw new ResponseError(403, 'You are not authorized to view this letter')
+  }
+  const letters = await prismaClient.procurementLetter.findFirst({
+    where: { id: letterId },
+    include: {
+      createdBy: { select: { name: true } },
+      currentApprover: { select: { name: true } },
+      unit: { select: { name: true } }
+    }
+  })
+  if (!letters) {
+    throw new ResponseError(404, 'Procurement letter not found')
+  }
+  return toProcurementLetterResponse(letters)
+}
+
+/**
+ * Mendapatkan progress (detail + logs) surat pengadaan berdasarkan ID surat.
+ */
+export const getProcurementProgress = async (letterId: string): Promise<ProgressResponse> => {
+  const letter = await prismaClient.procurementLetter.findUnique({
+    where: { id: letterId }
+  })
+  if (!letter) {
+    throw new ResponseError(404, 'Procurement letter not found')
+  }
+  const letters = await prismaClient.procurementLetter.findFirst({
+    where: { id: letterId },
+    include: {
+      createdBy: { select: { name: true } },
+      currentApprover: { select: { name: true } },
+      unit: { select: { name: true } }
+    }
+  })
+  if (!letters) {
+    throw new ResponseError(404, 'Procurement letter not found')
+  }
+  const logs = await prismaClient.procurementLog.findMany({
+    where: { procurementLetterId: letterId },
+    include: { actor: true },
+    orderBy: { timestamp: 'desc' }
+  })
+
+  const formattedLogs: ProcurementLogFormData[] = logs.map((log) => {
+    return {
+      logId: log.id, // Map `id` to `logId`
+      action: log.action,
+      comment: log.comment,
+      timestamp: log.timestamp.toISOString(), // Convert Date to string
+      actor: {
+        id: log.actor.id,
+        name: log.actor.name
+      },
+      actorId: log.actorId // This property is inherited from the Omit
+    }
+  })
+
+  return toProgressResponse(letters, formattedLogs)
 }

@@ -1,0 +1,15 @@
+2025-10-23 08:25:35 warn: Login failed for email: admin@example.com. IP: ::1. Reason: 
+Invalid `prisma.user.findUnique()` invocation in
+D:\BMU\GA\BE\src\services\auth-services.ts:22:34
+
+  19 }
+  20 
+  21 export const loginAuth = async (email: string, password: string, res: Response) => {
+→ 22   const user = await prisma.user.findUnique(
+Can't reach database server at `localhost:3306`
+
+Please make sure your database server is running at `localhost:3306`.
+2025-10-23 08:26:12 info: Login successful for user: admin@example.com (ID: 1c3e7bce-2620-4278-9865-5827aba13b2a). IP: ::1, User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36
+2025-10-23 08:48:38 error: JWT verify error: jwt expired
+2025-10-23 08:48:39 error: JWT verify error: jwt expired
+2025-10-23 08:48:39 error: JWT verify error: jwt expired

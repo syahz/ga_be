@@ -1,22 +1,44 @@
-import { ProcurementLetter, User, Unit } from '@prisma/client'
+import { ProcurementLetter, User, Unit, ProcurementLog, LogAction } from '@prisma/client'
 
-// DTO untuk membuat surat (unitId dibuat opsional)
-export interface CreateProcurementRequestDto {
+export enum ProcessDecision {
+  APPROVE = 'APPROVE',
+  REJECT = 'REJECT',
+  REQUEST_REVISION = 'REQUEST_REVISION'
+}
+
+// --------- MODEL & TYPE DEFINITIONS UNTUK PROCUREMENT LETTERS --------- //
+// Type data form untuk create dan update
+interface ProcurementFormData {
   letterNumber: string
   letterAbout: string
   nominal: number
   incomingLetterDate: string
-  letterFile: string
   unitId: string
+  letterFile?: string
 }
 
-// DTO untuk memproses keputusan (tidak berubah)
+export type ProcurementLogFormData = Omit<ProcurementLog, 'id' | 'procurementLetterId' | 'timestamp'> & {
+  logId: string
+  action: LogAction
+  comment?: string | null
+  timestamp: string
+  actor: Pick<User, 'id' | 'name'>
+}
+
+// DTO untuk membuat surat
+export type CreateProcurementRequestDto = ProcurementFormData
+// DTO untuk mengubah surat
+export type UpdateProcurementRequestDto = Omit<ProcurementFormData, 'letterFile'> & {
+  letterFile?: string
+}
+
+// DTO untuk memproses keputusan
 export interface ProcessDecisionRequestDto {
-  decision: 'APPROVE' | 'REJECT' | 'REQUEST_REVISION'
+  decision: ProcessDecision
   comment?: string
 }
 
-// Tipe data dasar dengan relasi (tidak perlu diekspor)
+// Tipe data dasar dengan relasi
 type ProcurementLetterWithRelations = ProcurementLetter & {
   createdBy: Pick<User, 'name'> | null
   currentApprover?: Pick<User, 'name'> | null
@@ -26,6 +48,11 @@ type ProcurementLetterWithRelations = ProcurementLetter & {
 // Tipe data final untuk SATU surat yang akan dikirim sebagai response (nominal sudah string)
 export type ProcurementLetterResponse = Omit<ProcurementLetterWithRelations, 'nominal'> & {
   nominal: string
+}
+
+export type ProgressResponse = {
+  letter: ProcurementLetterResponse
+  logs: ProcurementLogFormData[]
 }
 
 // Tipe data untuk response get all data dengan paginasi
@@ -38,12 +65,6 @@ export type GetAllProcurementLettersResponse = {
     total_page: number
   }
 }
-
-// Fungsi helper serialisasi BigInt
-function serializeBigInt(obj: any) {
-  return JSON.parse(JSON.stringify(obj, (_, value) => (typeof value === 'bigint' ? value.toString() : value)))
-}
-
 /**
  * Helper function untuk mengubah SATU objek surat dari Prisma
  * menjadi format JSON response yang aman (menangani BigInt dan relasi null).
@@ -53,7 +74,7 @@ export function toProcurementLetterResponse(letter: ProcurementLetterWithRelatio
   return {
     ...serialized,
     createdBy: letter.createdBy || { name: 'Unknown User' },
-    currentApprover: letter.currentApprover, // Bisa null, jadi tidak perlu fallback
+    currentApprover: letter.currentApprover || { name: 'Unknown Approver' },
     unit: letter.unit || { name: 'Unknown Unit' }
   }
 }
@@ -69,7 +90,7 @@ export function toAllProcurementLettersResponse(
   limit: number
 ): GetAllProcurementLettersResponse {
   return {
-    letters: letters.map(toProcurementLetterResponse), // Menggunakan helper tunggal untuk konsistensi
+    letters: letters.map(toProcurementLetterResponse),
     pagination: {
       total_data: total,
       page: page,
@@ -77,4 +98,52 @@ export function toAllProcurementLettersResponse(
       total_page: Math.ceil(total / limit)
     }
   }
+}
+
+export function toProgressResponse(letter: ProcurementLetterWithRelations, logs: ProcurementLogFormData[]): ProgressResponse {
+  const serializedLetter = toProcurementLetterResponse(letter)
+  const serializedLogs = logs.map((log) => ({
+    logId: log.logId,
+    action: log.action,
+    comment: log.comment,
+    timestamp: log.timestamp,
+    actor: log.actor,
+    actorId: log.actor.id
+  }))
+
+  return {
+    letter: serializedLetter,
+    logs: serializedLogs
+  }
+}
+export const toHistoryLogResponse = (
+  logs: (ProcurementLog & { procurementLetter: ProcurementLetterWithRelations })[],
+  total: number,
+  page: number,
+  limit: number
+) => {
+  const history = logs.map((log) => {
+    return {
+      logId: log.id,
+      action: log.action,
+      comment: log.comment,
+      timestamp: log.timestamp,
+      letter: toProcurementLetterResponse(log.procurementLetter)
+    }
+  })
+
+  return {
+    history,
+    pagination: {
+      total_data: total,
+      page: page,
+      limit: limit,
+      total_page: Math.ceil(total / limit)
+    }
+  }
+}
+
+// ------- Fungsi helper serialisasi BigInt ------- //
+function serializeBigInt(obj: any) {
+  return JSON.parse(JSON.stringify(obj, (_, value) => (typeof value === 'bigint' ? value.toString() : value)))
 }

@@ -1,0 +1,6 @@
+2025-10-17 15:12:03 info: Login successful for user: gm.griya.bmu@gmail.com (ID: 150977a9-b5af-4067-91f1-21c95f3495bc). IP: ::1, User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36
+2025-10-17 15:27:39 warn: Login failed for email: admin@example.com. IP: ::1. Reason: Invalid credentials
+2025-10-17 15:27:49 info: Login successful for user: admin@example.com (ID: c1d88cf4-0801-4b0a-9593-ffa938ddd699). IP: ::1, User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36
+2025-10-17 15:30:28 info: Google login successful for existing user: msfqrohman@gmail.com
+2025-10-17 15:30:28 info: Google login successful for user: msfqrohman@gmail.com. IP: ::1, User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36
+2025-10-17 15:31:45 info: Login successful for user: gm.griya.bmu@gmail.com (ID: 150977a9-b5af-4067-91f1-21c95f3495bc). IP: ::1, User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36

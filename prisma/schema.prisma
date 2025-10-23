@@ -93,8 +93,8 @@ model ProcurementLog {
   action              LogAction
   comment             String?
   timestamp           DateTime  @default(now())
-  procurementLetter   ProcurementLetter @relation(fields: [procurementLetterId], references: [id])
-  actor               User              @relation(fields: [actorId], references: [id])
+  procurementLetter   ProcurementLetter @relation(fields: [procurementLetterId], references: [id], onDelete: Cascade)
+  actor               User              @relation(fields: [actorId], references: [id], onDelete: Cascade)
 
   @@map("procurement_logs")
 }

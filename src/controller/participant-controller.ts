@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
-import { createParticipant, getParticipantById, getParticipants, updateParticipant, deleteParticipant } from '../services/participant-services'
 import { CreateParticipantUserRequest, UpdateParticipantUserRequest } from '../models/participant-model'
+import { createParticipant, getParticipantById, getParticipants, updateParticipant, deleteParticipant } from '../services/participant-services'
 
 export const root = async (req: Request, res: Response, next: NextFunction) => {
   try {
