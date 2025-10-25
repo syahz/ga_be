@@ -6,16 +6,6 @@
     "auditLog": "D:\\BMU\\GA\\BE\\src\\logs\\logininfo\\.7c56000d3b1161c63501229007bed0d88581d8d5-audit.json",
     "files": [
         {
-            "date": 1760688723032,
-            "name": "D:\\BMU\\GA\\BE\\src\\logs\\logininfo\\2025-10-17.log",
-            "hash": "67af35fca73bbbdc06335522329d860cc285cba10b66ad844fae354fc0d59b08"
-        },
-        {
-            "date": 1760859173761,
-            "name": "D:\\BMU\\GA\\BE\\src\\logs\\logininfo\\2025-10-19.log",
-            "hash": "c99f409154cc00b50fd7c459d85d4ffb1130aab895be97b51b60d37a6d3a95aa"
-        },
-        {
             "date": 1760923762364,
             "name": "D:\\BMU\\GA\\BE\\src\\logs\\logininfo\\2025-10-20.log",
             "hash": "cc893b1db19f32dc08f952fd9d921ff50c5bf81656086b73ed193e437d9402dc"
@@ -29,6 +19,16 @@
             "date": 1761182574547,
             "name": "D:\\BMU\\GA\\BE\\src\\logs\\logininfo\\2025-10-23.log",
             "hash": "09f7ccac46628dcc65de5de7d550746efb2ee99a6561d7667f53427334499e5e"
+        },
+        {
+            "date": 1761298504861,
+            "name": "D:\\BMU\\GA\\BE\\src\\logs\\logininfo\\2025-10-24.log",
+            "hash": "4563563bbf2e286bdf0213c145251cbc1b4326aafdeeba318191e53fea0dfd5b"
+        },
+        {
+            "date": 1761379828400,
+            "name": "D:\\BMU\\GA\\BE\\src\\logs\\logininfo\\2025-10-25.log",
+            "hash": "4e41783d89016fdb6ed380449232f437d148a43840773b004b894aa41acdc9d7"
         }
     ],
     "hashType": "sha256"
