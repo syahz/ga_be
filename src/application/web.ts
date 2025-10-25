@@ -9,6 +9,8 @@ import { errorMiddleware } from '../middleware/error-middleware'
 
 export const web = express()
 
+web.set('trust proxy', 1)
+
 const corsOptions = {
   origin: FRONTEND_URL || 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
