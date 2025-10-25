@@ -10,6 +10,11 @@ export async function login(req: Request, res: Response) {
     const result = await loginAuth(email, password, res)
 
     if (result && result.user) {
+      const xForwardedFor = req.headers['x-forwarded-for']
+      const xRealIp = req.headers['x-real-ip']
+      logger.debug(`Raw Headers - X-Forwarded-For: ${xForwardedFor}, X-Real-IP: ${xRealIp}, Remote Address (socket): ${req.socket.remoteAddress}`)
+      // ============================
+
       const ip = requestIp.getClientIp(req)
       const userAgent = req.get('User-Agent') || 'unknown'
 
@@ -29,6 +34,11 @@ export async function loginWithGoogleCallback(req: Request, res: Response) {
     const user = req.user as User & { role: Role; unit: Unit }
 
     await loginWithGoogle(user, res)
+
+    const xForwardedFor = req.headers['x-forwarded-for']
+    const xRealIp = req.headers['x-real-ip']
+    logger.debug(`Raw Headers - X-Forwarded-For: ${xForwardedFor}, X-Real-IP: ${xRealIp}, Remote Address (socket): ${req.socket.remoteAddress}`)
+    // ============================
 
     const ip = requestIp.getClientIp(req)
     const userAgent = req.get('User-Agent') || 'unknown'
