@@ -18,6 +18,17 @@ function cookieOptions() {
   }
 }
 
+function cookieOptionsGoogleCallback() {
+  return {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none' as const,
+    maxAge: REFRESH_EXPIRES_SECONDS * 1000,
+    path: '/',
+    domain: process.env.COOKIE_DOMAIN
+  }
+}
+
 export const loginAuth = async (email: string, password: string, res: Response) => {
   const user = await prisma.user.findUnique({
     where: { email },
@@ -108,7 +119,7 @@ export const loginWithGoogle = async (user: User & { role: Role; unit: Unit }, r
   })
 
   // Set semua cookie yang diperlukan
-  res.cookie('refresh_token', refreshPlain, cookieOptions())
+  res.cookie('refresh_token', refreshPlain, cookieOptionsGoogleCallback())
   res.cookie('user_role', role, { maxAge: REFRESH_EXPIRES_SECONDS * 1000, path: '/', sameSite: 'lax', secure: process.env.NODE_ENV === 'production' })
   res.cookie('user_unit', unit, { maxAge: REFRESH_EXPIRES_SECONDS * 1000, path: '/', sameSite: 'lax', secure: process.env.NODE_ENV === 'production' })
 
