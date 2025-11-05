@@ -1,0 +1,4 @@
+2025-10-26 12:09:06 warn: Login failed for email: brawijayamultiusaha@gmail.com. IP: ::1. Reason: Invalid credentials
+2025-10-26 12:09:22 info: Login successful for user: admin@example.com (ID: 1c3e7bce-2620-4278-9865-5827aba13b2a). IP: ::1, User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36
+2025-10-26 13:06:05 warn: Login failed for email: admin@email.com. IP: ::1. Reason: Invalid credentials
+2025-10-26 13:06:13 info: Login successful for user: admin@example.com (ID: 1c3e7bce-2620-4278-9865-5827aba13b2a). IP: ::1, User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36

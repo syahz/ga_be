@@ -7,25 +7,52 @@ import { PrismaClient, Role, Unit, User } from '@prisma/client'
 const prisma = new PrismaClient()
 
 const REFRESH_EXPIRES_SECONDS = Number(process.env.REFRESH_TOKEN_EXPIRES_SECONDS || 60 * 60 * 24 * 30)
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN
+const SINGLE_SESSION = (process.env.SINGLE_SESSION || 'true').toLowerCase() === 'true'
+
+function withDomain<T extends Record<string, any>>(opts: T): T & { domain?: string } {
+  return COOKIE_DOMAIN ? { ...opts, domain: COOKIE_DOMAIN } : opts
+}
 
 function cookieOptions() {
-  return {
+  // Host-scope or domain-scope depending on COOKIE_DOMAIN
+  return withDomain({
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax' as const,
     maxAge: REFRESH_EXPIRES_SECONDS * 1000,
     path: '/'
-  }
+  })
 }
 
 function cookieOptionsGoogleCallback() {
-  return {
+  // Cross-site redirect callback requires SameSite=None and secure
+  return withDomain({
     httpOnly: true,
     secure: true,
     sameSite: 'none' as const,
     maxAge: REFRESH_EXPIRES_SECONDS * 1000,
-    path: '/',
-    domain: process.env.COOKIE_DOMAIN
+    path: '/'
+  })
+}
+
+function nonHttpOnlyCookieOptions() {
+  return withDomain({
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    maxAge: REFRESH_EXPIRES_SECONDS * 1000,
+    path: '/'
+  })
+}
+
+async function resetUserRefreshTokens(userId: string) {
+  // To prevent piling up refresh tokens, either enforce single-session or prune old tokens.
+  if (SINGLE_SESSION) {
+    await prisma.refreshToken.deleteMany({ where: { userId } })
+  } else {
+    // Prune expired or revoked tokens for cleanliness
+    await prisma.refreshToken.deleteMany({ where: { userId, OR: [{ revoked: true }, { expiresAt: { lt: new Date() } }] } })
   }
 }
 
@@ -61,6 +88,9 @@ export const loginAuth = async (email: string, password: string, res: Response) 
   const tokenHash = hashToken(refreshPlain)
   const expiresAt = new Date(Date.now() + REFRESH_EXPIRES_SECONDS * 1000)
 
+  // Ensure old tokens are cleared to avoid piling up
+  await resetUserRefreshTokens(user.id)
+
   await prisma.refreshToken.create({
     data: { userId: user.id, tokenHash, expiresAt }
   })
@@ -72,29 +102,23 @@ export const loginAuth = async (email: string, password: string, res: Response) 
   res.cookie('refresh_token', refreshPlain, cookieOptions())
 
   // Set user role cookie
-  res.cookie('user_role', role, {
-    maxAge: REFRESH_EXPIRES_SECONDS * 1000,
-    path: '/',
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production'
-  })
+  res.cookie('user_role', role, nonHttpOnlyCookieOptions())
 
   // Set user unit cookie
-  res.cookie('user_unit', unit, {
-    maxAge: REFRESH_EXPIRES_SECONDS * 1000,
-    path: '/',
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production'
-  })
+  res.cookie('user_unit', unit, nonHttpOnlyCookieOptions())
   // Set CSRF token cookie if enabled
   if (csrfEnabled && csrfToken) {
-    res.cookie('csrf_token', csrfToken, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const,
-      maxAge: REFRESH_EXPIRES_SECONDS * 1000,
-      path: '/'
-    })
+    res.cookie(
+      'csrf_token',
+      csrfToken,
+      withDomain({
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict' as const,
+        maxAge: REFRESH_EXPIRES_SECONDS * 1000,
+        path: '/'
+      })
+    )
   }
 
   return { accessToken, user: { id: user.id, name: user.name, email: user.email, role, unit: user.unit.name } }
@@ -114,24 +138,31 @@ export const loginWithGoogle = async (user: User & { role: Role; unit: Unit }, r
   const tokenHash = hashToken(refreshPlain)
   const expiresAt = new Date(Date.now() + REFRESH_EXPIRES_SECONDS * 1000)
 
+  // Ensure old tokens are cleared to avoid piling up (same behavior as normal login)
+  await resetUserRefreshTokens(user.id)
+
   await prisma.refreshToken.create({
     data: { userId: user.id, tokenHash, expiresAt }
   })
 
   // Set semua cookie yang diperlukan
   res.cookie('refresh_token', refreshPlain, cookieOptionsGoogleCallback())
-  res.cookie('user_role', role, { maxAge: REFRESH_EXPIRES_SECONDS * 1000, path: '/', sameSite: 'lax', secure: process.env.NODE_ENV === 'production' })
-  res.cookie('user_unit', unit, { maxAge: REFRESH_EXPIRES_SECONDS * 1000, path: '/', sameSite: 'lax', secure: process.env.NODE_ENV === 'production' })
+  res.cookie('user_role', role, nonHttpOnlyCookieOptions())
+  res.cookie('user_unit', unit, nonHttpOnlyCookieOptions())
 
   if (process.env.CSRF_ENABLED === 'true') {
     const csrfToken = createRefreshToken().slice(0, 32)
-    res.cookie('csrf_token', csrfToken, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const,
-      maxAge: REFRESH_EXPIRES_SECONDS * 1000,
-      path: '/'
-    })
+    res.cookie(
+      'csrf_token',
+      csrfToken,
+      withDomain({
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict' as const,
+        maxAge: REFRESH_EXPIRES_SECONDS * 1000,
+        path: '/'
+      })
+    )
   }
 
   return { accessToken, user: { id: user.id, name: user.name, email: user.email, role, unit: user.unit.name } }
@@ -149,11 +180,16 @@ export const refreshAuth = async (rt: string | undefined, res: Response) => {
 
   // Jika token tidak ada, sudah dicabut (dari logout), atau kedaluwarsa
   if (!stored || stored.revoked || stored.expiresAt < new Date()) {
+    // Clear both host-only and domain-scoped cookies to avoid duplicates
     res.clearCookie('refresh_token', { path: '/' })
+    if (COOKIE_DOMAIN) res.clearCookie('refresh_token', { path: '/', domain: COOKIE_DOMAIN })
     res.clearCookie('user_unit', { path: '/' })
+    if (COOKIE_DOMAIN) res.clearCookie('user_unit', { path: '/', domain: COOKIE_DOMAIN })
     res.clearCookie('user_role', { path: '/' })
+    if (COOKIE_DOMAIN) res.clearCookie('user_role', { path: '/', domain: COOKIE_DOMAIN })
     if (process.env.CSRF_ENABLED === 'true') {
       res.clearCookie('csrf_token', { path: '/' })
+      if (COOKIE_DOMAIN) res.clearCookie('csrf_token', { path: '/', domain: COOKIE_DOMAIN })
     }
     throw new Error('Invalid or expired refresh token')
   }
@@ -199,31 +235,27 @@ export const refreshAuth = async (rt: string | undefined, res: Response) => {
   const unit = user.unit.name
   const accessToken = signAccessToken({ userId: user.id, role })
 
-  // Set semua cookie baru
+  // Set semua cookie baru (clear potential host-only duplicate first)
+  res.clearCookie('refresh_token', { path: '/' })
+  if (COOKIE_DOMAIN) res.clearCookie('refresh_token', { path: '/', domain: COOKIE_DOMAIN })
   res.cookie('refresh_token', newPlain, cookieOptions())
-  res.cookie('user_unit', unit, {
-    maxAge: REFRESH_EXPIRES_SECONDS * 1000,
-    path: '/',
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production'
-  })
-  res.cookie('user_role', role, {
-    maxAge: REFRESH_EXPIRES_SECONDS * 1000,
-    path: '/',
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production'
-  })
+  res.cookie('user_unit', unit, nonHttpOnlyCookieOptions())
+  res.cookie('user_role', role, nonHttpOnlyCookieOptions())
 
   // Set CSRF token baru jika diaktifkan
   if (process.env.CSRF_ENABLED === 'true') {
     const csrfToken = createRefreshToken().slice(0, 32)
-    res.cookie('csrf_token', csrfToken, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const,
-      maxAge: REFRESH_EXPIRES_SECONDS * 1000,
-      path: '/'
-    })
+    res.cookie(
+      'csrf_token',
+      csrfToken,
+      withDomain({
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict' as const,
+        maxAge: REFRESH_EXPIRES_SECONDS * 1000,
+        path: '/'
+      })
+    )
   }
 
   return {
@@ -242,10 +274,17 @@ export const logoutAuth = async (rt: string | undefined, res: Response) => {
   if (rt) {
     const tokenHash = hashToken(rt)
     await prisma.refreshToken.updateMany({ where: { tokenHash }, data: { revoked: true } })
+    // Clear both host-only and domain cookies to fully remove
     res.clearCookie('refresh_token', { path: '/' })
+    if (COOKIE_DOMAIN) res.clearCookie('refresh_token', { path: '/', domain: COOKIE_DOMAIN })
     res.clearCookie('user_unit', { path: '/' })
-    if (process.env.CSRF_ENABLED === 'true') res.clearCookie('csrf_token', { path: '/' })
+    if (COOKIE_DOMAIN) res.clearCookie('user_unit', { path: '/', domain: COOKIE_DOMAIN })
+    if (process.env.CSRF_ENABLED === 'true') {
+      res.clearCookie('csrf_token', { path: '/' })
+      if (COOKIE_DOMAIN) res.clearCookie('csrf_token', { path: '/', domain: COOKIE_DOMAIN })
+    }
     res.clearCookie('user_role', { path: '/' })
+    if (COOKIE_DOMAIN) res.clearCookie('user_role', { path: '/', domain: COOKIE_DOMAIN })
   }
   return { ok: true }
 }
