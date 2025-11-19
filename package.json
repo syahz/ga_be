@@ -1,7 +1,7 @@
 {
   "name": "lphub-system-information",
   "version": "1.0.0",
-  "description": "Backend System Information LPH UB",
+  "description": "Backend System Information E Proc BMU",
   "main": "index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",

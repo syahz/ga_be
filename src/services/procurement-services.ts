@@ -299,7 +299,6 @@ export const getHistoryLogs = async (user: UserWithRelations, page: number, limi
     prismaClient.procurementLog.findMany({
       where,
       include: {
-        // Sertakan detail surat untuk setiap log
         procurementLetter: {
           include: {
             createdBy: { select: { name: true } },
