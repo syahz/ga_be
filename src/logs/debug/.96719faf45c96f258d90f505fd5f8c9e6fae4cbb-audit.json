@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": false,
+        "amount": 5
+    },
+    "auditLog": "D:\\BMU\\GA\\BE\\src\\logs\\debug\\.96719faf45c96f258d90f505fd5f8c9e6fae4cbb-audit.json",
+    "files": [
+        {
+            "date": 1763515911696,
+            "name": "D:\\BMU\\GA\\BE\\src\\logs\\debug\\2025-11-19.log",
+            "hash": "2f2cb331fe0fb548d3cb44c3afb4f9ff180abc095032dffdbc91235b4549edf4"
+        }
+    ],
+    "hashType": "sha256"
+}

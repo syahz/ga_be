@@ -7,7 +7,8 @@ export class RuleValidation {
    * Ini tidak diekspor karena hanya digunakan secara internal.
    */
   private static readonly STEP_SCHEMA = z.object({
-    stepOrder: z.number().int().min(1),
+    // FE mengizinkan stepOrder mulai dari 0 (contoh yang diberikan punya 0 di akhir)
+    stepOrder: z.number().int().min(0),
     stepType: z.nativeEnum(StepType),
     roleId: z.uuid({ message: 'Format Role ID tidak valid.' })
   })
@@ -23,29 +24,13 @@ export class RuleValidation {
       maxAmount: z.number().nonnegative('Jumlah maksimal tidak boleh negatif').nullable().optional(),
       steps: z
         .array(this.STEP_SCHEMA)
-        .length(3, 'Harus ada tepat 3 langkah persetujuan (CREATE, REVIEW, APPROVE)')
-        .refine(
-          (steps) => {
-            // Validasi: Pastikan roleId unik untuk setiap langkah
-            const roleIds = new Set(steps.map((s) => s.roleId))
-            return roleIds.size === steps.length
-          },
-          {
-            message: 'Setiap langkah harus memiliki Role yang berbeda.'
-          }
-        )
-        .refine(
-          (steps) => {
-            // Validasi: Pastikan urutan dan tipe langkah benar
-            const hasCreate = steps.some((s) => s.stepOrder === 1 && s.stepType === 'CREATE')
-            const hasReview = steps.some((s) => s.stepOrder === 2 && s.stepType === 'REVIEW')
-            const hasApprove = steps.some((s) => s.stepOrder === 3 && s.stepType === 'APPROVE')
-            return hasCreate && hasReview && hasApprove
-          },
-          {
-            message: 'Struktur langkah tidak valid. Harus ada CREATE (order 1), REVIEW (order 2), dan APPROVE (order 3).'
-          }
-        )
+        .min(3, 'Minimal 3 langkah persetujuan.')
+        .refine((steps) => steps.filter((s) => s.stepType === 'CREATE').length === 1, {
+          message: 'Harus ada tepat 1 langkah CREATE.',
+          path: ['steps']
+        })
+        .refine((steps) => steps.some((s) => s.stepType === 'REVIEW'), { message: 'Minimal harus ada 1 langkah REVIEW.', path: ['steps'] })
+        .refine((steps) => steps.some((s) => s.stepType === 'APPROVE'), { message: 'Minimal harus ada 1 langkah APPROVE.', path: ['steps'] })
     })
     .refine(
       (data) => {
@@ -94,16 +79,16 @@ export class RuleValidation {
       .array(
         z.object({
           // Kita hanya perlu roleId dan stepOrder untuk update
-          stepOrder: z.number().int().min(1).max(3),
+          stepOrder: z.number().int().min(1),
           roleId: z.string().uuid({ message: 'Format Role ID tidak valid.' })
         })
       )
-      .length(3, 'Harus ada tepat 3 langkah persetujuan.')
+      .min(1, 'Minimal harus ada 1 langkah untuk diperbarui.')
       .refine(
         (steps) => {
           // Validasi: Pastikan roleId unik untuk setiap langkah
           const roleIds = new Set(steps.map((s) => s.roleId))
-          return roleIds.size === 3
+          return roleIds.size === steps.length
         },
         {
           message: 'Setiap langkah harus memiliki Role yang berbeda.'

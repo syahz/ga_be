@@ -14,7 +14,7 @@ export interface CreateRuleRequest {
   name: string
   minAmount: number
   maxAmount?: number | null
-  steps: [StepCreationDto, StepCreationDto, StepCreationDto] // Wajib ada 3 steps
+  steps: StepCreationDto[] // Minimal 3 langkah, bisa lebih
 }
 
 // DTO untuk endpoint: PUT /rules/:ruleId

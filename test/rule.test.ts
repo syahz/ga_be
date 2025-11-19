@@ -53,7 +53,7 @@ describe('Rule API (/api/admin/rules)', () => {
       expect(response.body.data.steps[0].role.name).toBe('Staff')
     })
 
-    it('should fail with 400 if steps are not exactly 3', async () => {
+    it('should fail with 400 if steps are less than 3', async () => {
       const staffRole = roles.find((r) => r.name === 'Staff')
       const response = await supertest(web)
         .post('/api/admin/rules')

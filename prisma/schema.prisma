@@ -48,9 +48,9 @@ model ProcurementRule {
 }
 
 model ProcurementStep {
-  id      String   @id @default(uuid())
-  ruleId  String
-  roleId  String
+  id      String     @id @default(uuid())
+  ruleId  String     @map("rule_id")
+  roleId  String     @map("role_id")
   
   stepOrder Int      @map("step_order") // Urutan langkah: 1, 2, 3
   stepType  StepType @map("step_type")   // Tipe langkah: CREATE, REVIEW, atau APPROVE
@@ -67,15 +67,15 @@ model ProcurementStep {
 
 model ProcurementLetter {
   id                  String   @id @default(uuid())
-  unitId              String
+  unitId              String   @map("unit_id")
   letterNumber        String   @unique @map("letter_number")
   letterAbout         String   @map("letter_about")
   nominal             BigInt
   incomingLetterDate  DateTime @map("incoming_letter_date")
   status              ProcurementStatus @default(DRAFT)
   letterFile          String  @map("letter_file")
-  createdById         String
-  currentApproverId   String?
+  createdById         String   @map("created_by_id")
+  currentApproverId   String?  @map("current_approver_id")
   unit                Unit     @relation(fields: [unitId], references: [id])
   createdBy           User     @relation("CreatedBy", fields: [createdById], references: [id])
   currentApprover     User?    @relation("CurrentApprover", fields: [currentApproverId], references: [id])
@@ -87,12 +87,12 @@ model ProcurementLetter {
 }
 
 model ProcurementLog {
-  id                  String    @id @default(uuid())
-  procurementLetterId String
-  actorId             String
-  action              LogAction
-  comment             String?
-  timestamp           DateTime  @default(now())
+  id                  String            @id @default(uuid())
+  procurementLetterId String            @map("procurement_letter_id")
+  actorId             String            @map("actor_id")
+  action              LogAction         @map("action")
+  comment             String?           @map("comment")
+  timestamp           DateTime          @default(now()) @map("timestamp") 
   procurementLetter   ProcurementLetter @relation(fields: [procurementLetterId], references: [id], onDelete: Cascade)
   actor               User              @relation(fields: [actorId], references: [id], onDelete: Cascade)
 
@@ -100,14 +100,14 @@ model ProcurementLog {
 }
 
 model User {
-  id                String   @id @default(uuid())
+  id                String      @id @default(uuid())
   name              String
-  email             String   @unique
+  email             String      @unique
   password          String
-  roleId            String
-  unitId            String
-  role              Role     @relation(fields: [roleId], references: [id])
-  unit              Unit     @relation(fields: [unitId], references: [id])
+  roleId            String      @map("role_id")
+  unitId            String      @map("unit_id")
+  role              Role        @relation(fields: [roleId], references: [id])
+  unit              Unit        @relation(fields: [unitId], references: [id])
 
   failedLogins  Int            @default(0)
   isLocked      Boolean        @default(false)
