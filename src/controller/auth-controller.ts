@@ -1,8 +1,7 @@
 import { logger } from '../utils/logger'
 import { Request, Response } from 'express'
 import requestIp from 'request-ip'
-import { Role, Unit, User } from '@prisma/client'
-import { loginAuth, loginWithGoogle, logoutAuth, refreshAuth } from '../services/auth-services'
+import { loginAuth, logoutAuth, refreshAuth } from '../services/auth-services'
 
 export async function login(req: Request, res: Response) {
   try {
@@ -27,30 +26,6 @@ export async function login(req: Request, res: Response) {
   }
 }
 
-export async function loginWithGoogleCallback(req: Request, res: Response) {
-  try {
-    const user = req.user as User & { role: Role; unit: Unit }
-
-    await loginWithGoogle(user, res)
-
-    const xForwardedFor = req.headers['x-forwarded-for']
-    const xRealIp = req.headers['x-real-ip']
-    logger.debug(`Raw Headers - X-Forwarded-For: ${xForwardedFor}, X-Real-IP: ${xRealIp}, Remote Address (socket): ${req.socket.remoteAddress}`)
-    // ============================
-
-    const ip = requestIp.getClientIp(req)
-    const userAgent = req.get('User-Agent') || 'unknown'
-    logger.info(`Google login successful for user: ${user.email}. IP: ${ip}, User-Agent: ${userAgent}`)
-    if (user.role.name === 'Admin') {
-      res.redirect(`${process.env.FRONTEND_URL}/admin`)
-    } else {
-      res.redirect(`${process.env.FRONTEND_URL}/user`)
-    }
-  } catch (error: any) {
-    logger.error('Google login callback error:', error)
-    res.redirect(`${process.env.FRONTEND_URL}/login?error=google_login_failed`)
-  }
-}
 export async function refresh(req: Request, res: Response) {
   try {
     const result = await refreshAuth(req.cookies['refresh_token'], res)

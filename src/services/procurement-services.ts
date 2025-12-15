@@ -151,6 +151,7 @@ export const createProcurementLetter = async (request: CreateProcurementRequestD
 
   const firstApproverStep = ruleSteps[1]
   const nextApproverRole = firstApproverStep.role
+  const nextApproverDivisionId = (firstApproverStep as any).divisionId
 
   const headOfficeUnit = await prismaClient.unit.findUnique({ where: { code: HEAD_OFFICE_CODE } })
   if (!headOfficeUnit) {
@@ -160,15 +161,18 @@ export const createProcurementLetter = async (request: CreateProcurementRequestD
   // Logika Pencarian Approver yang Diperbaiki
   const nextApprover = await prismaClient.user.findFirst({
     where: HEAD_OFFICE_ROLES.includes(nextApproverRole.name)
-      ? { roleId: nextApproverRole.id, unitId: headOfficeUnit.id }
-      : { roleId: nextApproverRole.id, unitId: procurementUnitId }
+      ? { roleId: nextApproverRole.id, divisionId: nextApproverDivisionId, unitId: headOfficeUnit.id }
+      : { roleId: nextApproverRole.id, divisionId: nextApproverDivisionId, unitId: procurementUnitId }
   })
 
   if (!nextApprover) {
     const unitForSearch = HEAD_OFFICE_ROLES.includes(nextApproverRole.name)
       ? headOfficeUnit
       : await prismaClient.unit.findUnique({ where: { id: procurementUnitId } })
-    throw new ResponseError(404, `Approver dengan role '${nextApproverRole.name}' tidak ditemukan di unit '${unitForSearch?.name}'.`)
+    throw new ResponseError(
+      404,
+      `Approver dengan role '${nextApproverRole.name}' dan divisi yang sesuai tidak ditemukan di unit '${unitForSearch?.name}'.`
+    )
   }
 
   const letterTransaction = await prismaClient.$transaction(async (tx) => {
@@ -365,7 +369,7 @@ export const processDecisionLetter = async (letterId: string, request: ProcessDe
   if (!rule || rule.steps.length === 0) throw new ResponseError(500, 'Configuration error: Approval rule not found.')
   const ruleSteps = rule.steps
 
-  const currentStep = ruleSteps.find((step) => step.roleId === approverUser.role.id)
+  const currentStep = ruleSteps.find((step) => step.roleId === approverUser.role.id && (step as any).divisionId === (approverUser as any).divisionId)
   if (!currentStep) throw new ResponseError(403, 'Your role is not part of this approval chain.')
 
   const isFinalStep = currentStep.stepOrder === ruleSteps[ruleSteps.length - 1].stepOrder
@@ -392,8 +396,8 @@ export const processDecisionLetter = async (letterId: string, request: ProcessDe
 
     const nextApprover = await prismaClient.user.findFirst({
       where: HEAD_OFFICE_ROLES.includes(nextStep.role.name)
-        ? { roleId: nextStep.role.id, unitId: headOfficeUnit.id }
-        : { roleId: nextStep.role.id, unitId: letter.unitId }
+        ? { roleId: nextStep.role.id, divisionId: (nextStep as any).divisionId, unitId: headOfficeUnit.id }
+        : { roleId: nextStep.role.id, divisionId: (nextStep as any).divisionId, unitId: letter.unitId }
     })
     if (!nextApprover) throw new ResponseError(404, `Next approver with role '${nextStep.role.name}' not found.`)
 

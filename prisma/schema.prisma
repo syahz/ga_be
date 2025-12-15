@@ -6,7 +6,6 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL")
 }
 
 enum ProcurementStatus {
@@ -51,6 +50,7 @@ model ProcurementStep {
   id      String     @id @default(uuid())
   ruleId  String     @map("rule_id")
   roleId  String     @map("role_id")
+  divisionId String  @map("division_id")
   
   stepOrder Int      @map("step_order") // Urutan langkah: 1, 2, 3
   stepType  StepType @map("step_type")   // Tipe langkah: CREATE, REVIEW, atau APPROVE
@@ -58,6 +58,7 @@ model ProcurementStep {
   // Relasi: Setiap langkah terhubung ke satu aturan dan satu role
   rule    ProcurementRule @relation(fields: [ruleId], references: [id])
   role    Role            @relation(fields: [roleId], references: [id])
+  division Division       @relation(fields: [divisionId], references: [id])
 
   @@map("procurement_steps")
 }
@@ -106,8 +107,10 @@ model User {
   password          String
   roleId            String      @map("role_id")
   unitId            String      @map("unit_id")
+  divisionId        String      @map("division_id")
   role              Role        @relation(fields: [roleId], references: [id])
   unit              Unit        @relation(fields: [unitId], references: [id])
+  division          Division    @relation(fields: [divisionId], references: [id])
 
   failedLogins  Int            @default(0)
   isLocked      Boolean        @default(false)
@@ -116,6 +119,8 @@ model User {
   assignedLetters   ProcurementLetter[] @relation("CurrentApprover")
   refreshTokens     RefreshToken[]
   logs              ProcurementLog[]
+
+  @@map("users")
 }
 
 model Role {
@@ -124,6 +129,17 @@ model Role {
   users User[]
   // Relasi: Satu role bisa ada di banyak langkah persetujuan
   procurementSteps ProcurementStep[]
+
+  @@map("roles")
+}
+
+model Division {
+  id         String   @id @default(uuid())
+  name       String   @unique
+  users      User[]
+  procurementSteps ProcurementStep[]
+
+  @@map("divisions")
 }
 
 model Unit {
@@ -132,6 +148,8 @@ model Unit {
   name               String @unique
   users              User[]
   procurementLetters ProcurementLetter[]
+
+  @@map("units")
 }
 
 // For Auth

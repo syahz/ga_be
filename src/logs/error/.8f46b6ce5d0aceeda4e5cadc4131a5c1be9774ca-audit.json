@@ -9,6 +9,16 @@
             "date": 1763515911702,
             "name": "D:\\BMU\\GA\\BE\\src\\logs\\error\\2025-11-19.log",
             "hash": "a77c1163bb48147c4633d0768135729f5f943ce632b6959b3c3897046f431e31"
+        },
+        {
+            "date": 1763624780875,
+            "name": "D:\\BMU\\GA\\BE\\src\\logs\\error\\2025-11-20.log",
+            "hash": "20e74d0d8c6e8e1435e2d07d6a49fb511d7a13594b8b2dbffed6e03983c712cc"
+        },
+        {
+            "date": 1765771303366,
+            "name": "D:\\BMU\\GA\\BE\\src\\logs\\error\\2025-12-15.log",
+            "hash": "57f13b1461a5cc3093905534c73562e7c56faa00631ba96a77711701c0cf72d4"
         }
     ],
     "hashType": "sha256"

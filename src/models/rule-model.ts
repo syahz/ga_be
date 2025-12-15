@@ -7,6 +7,7 @@ interface StepCreationDto {
   stepOrder: number
   stepType: StepType
   roleId: string
+  divisionId?: string | null
 }
 
 // DTO untuk endpoint: POST /rules
@@ -29,6 +30,7 @@ export interface UpdateRuleStepsRequest {
   steps: {
     stepOrder: number
     roleId: string
+    divisionId?: string | null
   }[]
 }
 
@@ -43,6 +45,10 @@ type StepResponse = {
     id: string
     name: string
   }
+  division?: {
+    id: string
+    name: string
+  } | null
 }
 
 // Tipe data final untuk satu 'rule' yang dikirim sebagai response
@@ -68,7 +74,7 @@ export type GetAllRulesResponse = {
 // --- Helper Functions (Mapper) ---
 
 type RuleWithRelations = ProcurementRule & {
-  steps: (ProcurementStep & { role: Role })[]
+  steps: (ProcurementStep & { role: Role; division?: { id: string; name: string } | null })[]
 }
 
 export function toRuleWithStepsResponse(rule: RuleWithRelations): RuleWithStepsResponse {
@@ -86,7 +92,8 @@ export function toRuleWithStepsResponse(rule: RuleWithRelations): RuleWithStepsR
         role: {
           id: step.role.id,
           name: step.role.name
-        }
+        },
+        division: step.division ? { id: (step.division as any).id, name: (step.division as any).name } : null
       }))
   }
 }

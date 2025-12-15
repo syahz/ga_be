@@ -10,7 +10,8 @@ export class RuleValidation {
     // FE mengizinkan stepOrder mulai dari 0 (contoh yang diberikan punya 0 di akhir)
     stepOrder: z.number().int().min(0),
     stepType: z.nativeEnum(StepType),
-    roleId: z.uuid({ message: 'Format Role ID tidak valid.' })
+    roleId: z.uuid({ message: 'Format Role ID tidak valid.' }),
+    divisionId: z.uuid({ message: 'Format Division ID tidak valid.' })
   })
 
   /**
@@ -31,6 +32,10 @@ export class RuleValidation {
         })
         .refine((steps) => steps.some((s) => s.stepType === 'REVIEW'), { message: 'Minimal harus ada 1 langkah REVIEW.', path: ['steps'] })
         .refine((steps) => steps.some((s) => s.stepType === 'APPROVE'), { message: 'Minimal harus ada 1 langkah APPROVE.', path: ['steps'] })
+        .refine((steps) => steps.every((s) => s.divisionId !== undefined), {
+          message: 'Division ID harus ada untuk setiap langkah.',
+          path: ['steps']
+        })
     })
     .refine(
       (data) => {
@@ -80,7 +85,8 @@ export class RuleValidation {
         z.object({
           // Kita hanya perlu roleId dan stepOrder untuk update
           stepOrder: z.number().int().min(1),
-          roleId: z.string().uuid({ message: 'Format Role ID tidak valid.' })
+          roleId: z.string().uuid({ message: 'Format Role ID tidak valid.' }),
+          divisionId: z.string().uuid().nullable().optional()
         })
       )
       .min(1, 'Minimal harus ada 1 langkah untuk diperbarui.')

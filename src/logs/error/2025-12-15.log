@@ -1,0 +1,60 @@
+2025-12-15 11:01:44 error: uncaughtException: `PrismaClient` needs to be constructed with a non-empty, valid `PrismaClientOptions`:
+
+```
+new PrismaClient({
+  ...
+})
+```
+
+or
+
+```
+constructor() {
+  super({ ... });
+}
+```
+          
+PrismaClientInitializationError: `PrismaClient` needs to be constructed with a non-empty, valid `PrismaClientOptions`:
+
+```
+new PrismaClient({
+  ...
+})
+```
+
+or
+
+```
+constructor() {
+  super({ ... });
+}
+```
+          
+    at new t (D:\BMU\GA\BE\node_modules\@prisma\client\src\runtime\getPrismaClient.ts:259:15)
+    at Object.<anonymous> (D:\BMU\GA\BE\src\services\auth-services.ts:7:16)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1688:14)
+    at Module._compile (D:\BMU\GA\BE\node_modules\source-map-support\source-map-support.js:521:25)
+    at Module.m._compile (C:\Users\DWIAJU~1\AppData\Local\Temp\ts-node-dev-hook-07082201519151732.js:69:33)
+    at node:internal/modules/cjs/loader:1820:10
+    at require.extensions..jsx.require.extensions..js (C:\Users\DWIAJU~1\AppData\Local\Temp\ts-node-dev-hook-07082201519151732.js:114:20)
+    at require.extensions.<computed> (C:\Users\DWIAJU~1\AppData\Local\Temp\ts-node-dev-hook-07082201519151732.js:71:20)
+    at Object.nodeDevHook [as .ts] (D:\BMU\GA\BE\node_modules\ts-node-dev\lib\hook.js:63:13)
+    at Module.load (node:internal/modules/cjs/loader:1423:32)
+2025-12-15 11:06:59 error: uncaughtException: ⨯ Unable to compile TypeScript:
+src/services/auth-services.ts(89,25): error TS1003: Identifier expected.
+
+Error: ⨯ Unable to compile TypeScript:
+src/services/auth-services.ts(89,25): error TS1003: Identifier expected.
+
+    at Object.<anonymous> (D:\BMU\GA\BE\src\services\auth-services.ts:1:7)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1688:14)
+    at Module._compile (D:\BMU\GA\BE\node_modules\source-map-support\source-map-support.js:521:25)
+    at Module.m._compile (C:\Users\DWIAJU~1\AppData\Local\Temp\ts-node-dev-hook-07082201519151732.js:69:33)
+    at node:internal/modules/cjs/loader:1820:10
+    at require.extensions..jsx.require.extensions..js (C:\Users\DWIAJU~1\AppData\Local\Temp\ts-node-dev-hook-07082201519151732.js:114:20)
+    at require.extensions.<computed> (C:\Users\DWIAJU~1\AppData\Local\Temp\ts-node-dev-hook-07082201519151732.js:71:20)
+    at Object.nodeDevHook [as .ts] (D:\BMU\GA\BE\node_modules\ts-node-dev\lib\hook.js:63:13)
+    at Module.load (node:internal/modules/cjs/loader:1423:32)
+    at Function._load (node:internal/modules/cjs/loader:1246:12)
+2025-12-15 15:48:55 error: JWT verify error: jwt expired
+2025-12-15 16:34:59 error: JWT verify error: jwt expired

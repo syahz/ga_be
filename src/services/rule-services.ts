@@ -75,7 +75,10 @@ export const createRule = async (request: CreateRuleRequest): Promise<RuleWithSt
 
     await tx.procurementStep.createMany({
       data: createRequest.steps.map((step) => ({
-        ...step,
+        stepOrder: step.stepOrder,
+        roleId: step.roleId,
+        divisionId: step.divisionId,
+        stepType: step.stepType,
         ruleId: newRule.id
       }))
     })
@@ -131,7 +134,8 @@ export const updateRuleSteps = async (ruleId: string, request: UpdateRuleStepsRe
           },
           // --------------------------
           data: {
-            roleId: step.roleId
+            roleId: step.roleId,
+            divisionId: (step as any).divisionId
           }
         })
       )

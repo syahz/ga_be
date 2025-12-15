@@ -9,6 +9,16 @@
             "date": 1763515911699,
             "name": "D:\\BMU\\GA\\BE\\src\\logs\\logininfo\\2025-11-19.log",
             "hash": "8d72173ee3201ef717fb20bbedef1c83157d635e7a731a362660dffc5f418c82"
+        },
+        {
+            "date": 1763624780872,
+            "name": "D:\\BMU\\GA\\BE\\src\\logs\\logininfo\\2025-11-20.log",
+            "hash": "9a059760bfbd42e7d4f87fd3afc0df2b49deeb3e2862705b57948e74eb0b9679"
+        },
+        {
+            "date": 1765771303362,
+            "name": "D:\\BMU\\GA\\BE\\src\\logs\\logininfo\\2025-12-15.log",
+            "hash": "e5653a4eb48bf9e36dc0638f3afafc6b3c931bde2a6d4686ea230a7e82685e2f"
         }
     ],
     "hashType": "sha256"
