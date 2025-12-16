@@ -1,6 +1,5 @@
 require('dotenv/config')
 const { PrismaClient } = require('@prisma/client')
-const bcrypt = require('bcrypt')
 const { PrismaMariaDb } = require('@prisma/adapter-mariadb')
 
 function createAdapter(urlString) {
@@ -125,9 +124,6 @@ async function seedAdminUser() {
   })
   if (!divisionAdmin) throw new Error('Unit IT belum ada')
 
-  const plainPassword = process.env.ADMIN_PASSWORD || 'admin12345'
-  const passwordHash = await bcrypt.hash(plainPassword, 10)
-
   await prisma.user.upsert({
     where: { email: 'admin@example.com' },
     update: {},
@@ -136,8 +132,7 @@ async function seedAdminUser() {
       name: 'Administrator',
       roleId: adminRole.id,
       unitId: hoUnit.id,
-      divisionId: divisionAdmin.id,
-      password: passwordHash
+      divisionId: divisionAdmin.id
     }
   })
 
