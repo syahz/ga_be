@@ -4,6 +4,11 @@ config({ path: '.env' })
 
 export const {
   PORT,
+  CLIENT_ID,
+  CLIENT_SECRET,
+  CSRF_ENABLED,
+  PORTAL_API_URL,
+
   SMTP_EMAIL,
   SMTP_PASSWORD,
   LOG_DIR,

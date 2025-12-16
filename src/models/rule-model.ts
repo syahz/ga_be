@@ -1,4 +1,4 @@
-import { ProcurementRule, ProcurementStep, Role, StepType } from '@prisma/client'
+import { Division, ProcurementRule, ProcurementStep, Role, StepType } from '@prisma/client'
 
 // --- DTO untuk Request Body ---
 
@@ -45,10 +45,10 @@ type StepResponse = {
     id: string
     name: string
   }
-  division?: {
+  division: {
     id: string
     name: string
-  } | null
+  }
 }
 
 // Tipe data final untuk satu 'rule' yang dikirim sebagai response
@@ -74,7 +74,7 @@ export type GetAllRulesResponse = {
 // --- Helper Functions (Mapper) ---
 
 type RuleWithRelations = ProcurementRule & {
-  steps: (ProcurementStep & { role: Role; division?: { id: string; name: string } | null })[]
+  steps: (ProcurementStep & { role: Role; division: Division })[]
 }
 
 export function toRuleWithStepsResponse(rule: RuleWithRelations): RuleWithStepsResponse {
@@ -93,7 +93,10 @@ export function toRuleWithStepsResponse(rule: RuleWithRelations): RuleWithStepsR
           id: step.role.id,
           name: step.role.name
         },
-        division: step.division ? { id: (step.division as any).id, name: (step.division as any).name } : null
+        division: {
+          id: step.division.id,
+          name: step.division.name
+        }
       }))
   }
 }

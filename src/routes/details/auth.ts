@@ -1,9 +1,9 @@
 import express from 'express'
-import { login, refresh, logout } from '../../controller/auth-controller'
+import { sso, refresh, logout } from '../../controller/auth-controller'
 
 const authRoutes = express.Router()
 
-authRoutes.post('/login', login)
+authRoutes.post('/sso/callback', sso)
 authRoutes.post('/refresh', refresh)
 authRoutes.delete('/logout', logout)
 

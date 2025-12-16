@@ -1,4 +1,4 @@
-import { User, Role, Unit } from '@prisma/client'
+import { User, Role, Unit, Division } from '@prisma/client'
 
 // Request and Response for Participant User
 export type CreateParticipantUserRequest = {
@@ -7,6 +7,7 @@ export type CreateParticipantUserRequest = {
   password: string
   roleId: string
   unitId: string
+  divisionId: string
   confirmPassword: string
 }
 
@@ -15,8 +16,7 @@ export type UpdateParticipantUserRequest = {
   email?: string
   roleId?: string
   unitId?: string
-  password?: string
-  confirmPassword?: string
+  divisionId?: string
 }
 
 // Tipe data final yang akan dikirim sebagai response untuk setiap user
@@ -33,6 +33,10 @@ export type ParticipantUserResponse = {
     id: string
     name: string
   } | null // Unit juga bisa null
+  division: {
+    id: string
+    name: string
+  } | null // Division juga bisa null
 }
 
 // Tipe data untuk membungkus keseluruhan response, termasuk paginasi
@@ -50,6 +54,7 @@ export type GetAllParticipantsResponse = {
 type UserWithRoleAndUnit = User & {
   role: Role | null
   unit: Unit | null
+  division: Division | null
 }
 
 /**
@@ -78,6 +83,12 @@ export function toAllParticipantsResponse(users: UserWithRoleAndUnit[], total: n
             id: user.unit.id,
             name: user.unit.name
           }
+        : null,
+      division: user.division
+        ? {
+            id: user.division.id,
+            name: user.division.name
+          }
         : null
     })),
     pagination: {
@@ -104,6 +115,12 @@ export function toParticipantResponse(user: UserWithRoleAndUnit): ParticipantUse
       ? {
           id: user.unit.id,
           name: user.unit.name
+        }
+      : null,
+    division: user.division
+      ? {
+          id: user.division.id,
+          name: user.division.name
         }
       : null
   }

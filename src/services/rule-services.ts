@@ -27,7 +27,10 @@ export const getRules = async (page: number, limit: number, search: string) => {
       orderBy: { name: 'asc' },
       include: {
         steps: {
-          include: { role: true }
+          include: {
+            role: true,
+            division: true
+          }
         }
       }
     })
@@ -44,7 +47,10 @@ export const getRuleById = async (ruleId: string): Promise<RuleWithStepsResponse
     where: { id: ruleId },
     include: {
       steps: {
-        include: { role: true },
+        include: {
+          role: true,
+          division: true
+        },
         orderBy: { stepOrder: 'asc' }
       }
     }
@@ -86,7 +92,14 @@ export const createRule = async (request: CreateRuleRequest): Promise<RuleWithSt
     // Ambil kembali data lengkap untuk response
     return tx.procurementRule.findUniqueOrThrow({
       where: { id: newRule.id },
-      include: { steps: { include: { role: true } } }
+      include: {
+        steps: {
+          include: {
+            role: true,
+            division: true
+          }
+        }
+      }
     })
   })
 
@@ -106,7 +119,14 @@ export const updateRuleDetails = async (ruleId: string, request: UpdateRuleReque
       minAmount: updateRequest.minAmount ? BigInt(updateRequest.minAmount) : undefined,
       maxAmount: updateRequest.maxAmount ? BigInt(updateRequest.maxAmount) : updateRequest.maxAmount === null ? null : undefined
     },
-    include: { steps: { include: { role: true } } }
+    include: {
+      steps: {
+        include: {
+          role: true,
+          division: true
+        }
+      }
+    }
   })
 
   return toRuleWithStepsResponse(updatedRule)
@@ -144,7 +164,15 @@ export const updateRuleSteps = async (ruleId: string, request: UpdateRuleStepsRe
     // Ambil kembali data aturan yang sudah lengkap untuk respons (tidak berubah)
     return tx.procurementRule.findUniqueOrThrow({
       where: { id: ruleId },
-      include: { steps: { include: { role: true }, orderBy: { stepOrder: 'asc' } } }
+      include: {
+        steps: {
+          include: {
+            role: true,
+            division: true
+          },
+          orderBy: { stepOrder: 'asc' }
+        }
+      }
     })
   })
 

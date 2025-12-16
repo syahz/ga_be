@@ -11,6 +11,7 @@ import { prismaClient } from '../application/database'
 import { ResponseError } from '../error/response-error'
 import { toUserResponse, UserResponse } from '../models/user-model'
 import { ParticipantValidation } from '../validation/participant-validation'
+import { password } from '../controller/user-controller'
 
 export const getParticipants = async (page: number, limit: number, search: string, roleId?: string, unitId?: string) => {
   const skip = (page - 1) * limit
@@ -49,7 +50,8 @@ export const getParticipants = async (page: number, limit: number, search: strin
       take: limit,
       include: {
         role: true,
-        unit: true
+        unit: true,
+        division: true
       },
       orderBy: { name: 'asc' }
     })
@@ -66,7 +68,8 @@ export const getParticipantById = async (participantId: string): Promise<Partici
     },
     include: {
       role: true,
-      unit: true
+      unit: true,
+      division: true
     },
     orderBy: { id: 'asc' }
   })
@@ -102,7 +105,7 @@ export const updateParticipant = async (participantId: string, request: UpdatePa
       where: { id: updateRequest.roleId }
     })
     if (!role) {
-      throw new ResponseError(400, 'Role ID tidak valid atau tidak ditemukan')
+      throw new ResponseError(400, 'Id Role tidak valid atau tidak ditemukan')
     }
   }
 
@@ -111,7 +114,15 @@ export const updateParticipant = async (participantId: string, request: UpdatePa
       where: { id: updateRequest.unitId }
     })
     if (!unit) {
-      throw new ResponseError(400, 'Unit ID tidak valid atau tidak ditemukan')
+      throw new ResponseError(400, 'Id Unit tidak valid atau tidak ditemukan')
+    }
+  }
+  if (updateRequest.divisionId) {
+    const division = await prismaClient.division.findUnique({
+      where: { id: updateRequest.divisionId }
+    })
+    if (!division) {
+      throw new ResponseError(400, 'Id Divisi tidak valid atau tidak ditemukan')
     }
   }
 
@@ -120,21 +131,15 @@ export const updateParticipant = async (participantId: string, request: UpdatePa
   if (updateRequest.email) dataToUpdate.email = updateRequest.email
   if (updateRequest.roleId) dataToUpdate.roleId = updateRequest.roleId
   if (updateRequest.unitId) dataToUpdate.unitId = updateRequest.unitId
-
-  if (updateRequest.password) {
-    if (updateRequest.password.length > 0) {
-      dataToUpdate.password = await bcrypt.hash(updateRequest.password, 10)
-    } else {
-      delete updateRequest.password
-    }
-  }
+  if (updateRequest.divisionId) dataToUpdate.divisionId = updateRequest.divisionId
 
   const updatedUser = await prismaClient.user.update({
     where: { id: participantId },
     data: dataToUpdate,
     include: {
       role: true,
-      unit: true
+      unit: true,
+      division: true
     }
   })
 
@@ -153,9 +158,6 @@ export const createParticipant = async (request: CreateParticipantUserRequest): 
     throw new ResponseError(400, 'Email sudah terdaftar')
   }
 
-  // Hash password
-  const hashedPassword = await bcrypt.hash(createRequest.password, 10)
-
   // Cek RoleId dan UnitId apakah ada di tabel masing-masing
   const role = await prismaClient.role.findMany().then((roles) => roles.find((r) => r.id === createRequest.roleId))
   if (!role) {
@@ -167,14 +169,23 @@ export const createParticipant = async (request: CreateParticipantUserRequest): 
     throw new ResponseError(500, 'Id Unit belum tersedia, jalankan seeder')
   }
 
+  const division = await prismaClient.division.findUnique({ where: { id: createRequest.divisionId } })
+  if (!division) {
+    throw new ResponseError(500, 'Id Divisi belum tersedia, jalankan seeder')
+  }
+
+  // buat bcrypt untuk hash password dummy sementara
+  const hashedPassword = await bcrypt.hash('dummy', 10)
+
   // Simpan ke DB
   const user = await prismaClient.user.create({
     data: {
       name: createRequest.name,
       email: createRequest.email,
-      password: hashedPassword,
       roleId: role.id,
-      unitId: createRequest.unitId
+      unitId: createRequest.unitId,
+      divisionId: createRequest.divisionId,
+      password: hashedPassword
     }
   })
 
@@ -189,7 +200,8 @@ export const deleteParticipant = async (participantId: string): Promise<Particip
     },
     include: {
       role: true,
-      unit: true
+      unit: true,
+      division: true
     }
   })
   if (!user) {

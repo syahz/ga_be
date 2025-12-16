@@ -104,17 +104,12 @@ model User {
   id                String      @id @default(uuid())
   name              String
   email             String      @unique
-  password          String
   roleId            String      @map("role_id")
   unitId            String      @map("unit_id")
   divisionId        String      @map("division_id")
   role              Role        @relation(fields: [roleId], references: [id])
   unit              Unit        @relation(fields: [unitId], references: [id])
   division          Division    @relation(fields: [divisionId], references: [id])
-
-  failedLogins  Int            @default(0)
-  isLocked      Boolean        @default(false)
-  
   createdLetters    ProcurementLetter[] @relation("CreatedBy")
   assignedLetters   ProcurementLetter[] @relation("CurrentApprover")
   refreshTokens     RefreshToken[]
