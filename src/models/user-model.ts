@@ -7,39 +7,16 @@ export type UserPayload = {
     id: string
     name: string
   }
+  division: {
+    id: string
+    name: string
+  }
 }
-
-export type UserRole =
-  | 'Admin'
-  | 'Staff'
-  | 'General Affair'
-  | 'GM'
-  | 'Direktur Operasional'
-  | 'Direktur Keuangan'
-  | 'Direktur Utama'
-  | 'Kadiv Keuangan'
 
 // For Account User
 export type UpdateAccountUserRequest = {
   name?: string
   email?: string
-}
-
-export type UpdateAccountPasswordRequest = {
-  current_password: string
-  new_password: string
-  confirm_password: string
-}
-
-export type LoginUserRequest = {
-  email: string
-  password: string
-}
-
-export type UpdateUserPasswordRequest = {
-  currentPassword: string
-  newPassword: string
-  confirmPassword: string
 }
 
 export type UserResponse = {
