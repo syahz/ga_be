@@ -11,7 +11,6 @@ import { prismaClient } from '../application/database'
 import { ResponseError } from '../error/response-error'
 import { toUserResponse, UserResponse } from '../models/user-model'
 import { ParticipantValidation } from '../validation/participant-validation'
-import { password } from '../controller/user-controller'
 
 export const getParticipants = async (page: number, limit: number, search: string, roleId?: string, unitId?: string) => {
   const skip = (page - 1) * limit
@@ -174,9 +173,6 @@ export const createParticipant = async (request: CreateParticipantUserRequest): 
     throw new ResponseError(500, 'Id Divisi belum tersedia, jalankan seeder')
   }
 
-  // buat bcrypt untuk hash password dummy sementara
-  const hashedPassword = await bcrypt.hash('dummy', 10)
-
   // Simpan ke DB
   const user = await prismaClient.user.create({
     data: {
@@ -184,8 +180,7 @@ export const createParticipant = async (request: CreateParticipantUserRequest): 
       email: createRequest.email,
       roleId: role.id,
       unitId: createRequest.unitId,
-      divisionId: createRequest.divisionId,
-      password: hashedPassword
+      divisionId: createRequest.divisionId
     }
   })
 
