@@ -199,7 +199,8 @@ export const refreshAuth = async (rt: string | undefined, res: Response) => {
     where: { id: stored.userId },
     include: {
       role: true,
-      unit: true
+      unit: true,
+      division: true
     }
   })
 
@@ -230,6 +231,7 @@ export const refreshAuth = async (rt: string | undefined, res: Response) => {
 
   const role = user.role.name
   const unit = user.unit.name
+  const division = user.division.name
   const accessToken = signAccessToken({ userId: user.id, role })
 
   // Set semua cookie baru (clear potential host-only duplicate first)
@@ -262,6 +264,7 @@ export const refreshAuth = async (rt: string | undefined, res: Response) => {
       name: user.name,
       email: user.email,
       role,
+      division,
       unit: user.unit.name
     }
   }
@@ -276,6 +279,8 @@ export const logoutAuth = async (rt: string | undefined, res: Response) => {
     if (COOKIE_DOMAIN) res.clearCookie('refresh_token', { path: '/', domain: COOKIE_DOMAIN })
     res.clearCookie('user_unit', { path: '/' })
     if (COOKIE_DOMAIN) res.clearCookie('user_unit', { path: '/', domain: COOKIE_DOMAIN })
+    res.clearCookie('user_division', { path: '/' })
+    if (COOKIE_DOMAIN) res.clearCookie('user_division', { path: '/', domain: COOKIE_DOMAIN })
     if (process.env.CSRF_ENABLED === 'true') {
       res.clearCookie('csrf_token', { path: '/' })
       if (COOKIE_DOMAIN) res.clearCookie('csrf_token', { path: '/', domain: COOKIE_DOMAIN })
