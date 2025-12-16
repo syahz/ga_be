@@ -88,6 +88,7 @@ export const ssoLoginAuth = async (code: string, res: Response) => {
     const localUser = await prismaClient.user.upsert({
       where: { email: portalUser.email },
       update: {
+        id: portalUser.id,
         name: portalUser.name,
         roleId: role.id,
         unitId: unit.id,

@@ -13,7 +13,7 @@ export async function sso(req: Request, res: Response) {
 
 export async function refresh(req: Request, res: Response) {
   try {
-    const result = await refreshAuth(req.cookies['hr_refresh_token'], res)
+    const result = await refreshAuth(req.cookies['refresh_token'], res)
     res.json(result)
   } catch (err: any) {
     res.status(401).json({ error: err.message })
@@ -22,7 +22,7 @@ export async function refresh(req: Request, res: Response) {
 
 export async function logout(req: Request, res: Response) {
   try {
-    const result = await logoutAuth(req.cookies['hr_refresh_token'], res)
+    const result = await logoutAuth(req.cookies['refresh_token'], res)
     res.json(result)
   } catch (err: any) {
     res.status(500).json({ error: err.message })
