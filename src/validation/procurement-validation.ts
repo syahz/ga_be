@@ -24,7 +24,8 @@ export class ProcurementValidation {
       }),
 
     letterFile: z.string().optional(),
-    unitId: z.uuid('unitId harus berupa UUID')
+    unitId: z.uuid('unitId harus berupa UUID'),
+    note: z.string().max(1000, 'Catatan maksimal 1000 karakter').optional()
   })
 
   /**

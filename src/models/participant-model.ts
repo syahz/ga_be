@@ -4,11 +4,9 @@ import { User, Role, Unit, Division } from '@prisma/client'
 export type CreateParticipantUserRequest = {
   name: string
   email: string
-  password: string
   roleId: string
   unitId: string
   divisionId: string
-  confirmPassword: string
 }
 
 export type UpdateParticipantUserRequest = {

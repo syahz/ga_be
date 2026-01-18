@@ -15,12 +15,21 @@ interface ProcurementFormData {
   incomingLetterDate: string
   unitId: string
   letterFile?: string
+  note?: string
 }
 
 export type ProcurementLogFormData = Omit<ProcurementLog, 'id' | 'procurementLetterId' | 'timestamp'> & {
   logId: string
   action: LogAction
   comment?: string | null
+  timestamp: string
+  actor: Pick<User, 'id' | 'name'>
+}
+
+export type LatestNoteResponse = {
+  logId: string
+  action: LogAction
+  comment: string | null
   timestamp: string
   actor: Pick<User, 'id' | 'name'>
 }
@@ -48,6 +57,7 @@ type ProcurementLetterWithRelations = ProcurementLetter & {
 // Tipe data final untuk SATU surat yang akan dikirim sebagai response (nominal sudah string)
 export type ProcurementLetterResponse = Omit<ProcurementLetterWithRelations, 'nominal'> & {
   nominal: string
+  latestNote?: LatestNoteResponse
 }
 
 export type ProgressResponse = {
@@ -86,13 +96,14 @@ export type GetDashboardProcurementsResponse = {
  * Helper function untuk mengubah SATU objek surat dari Prisma
  * menjadi format JSON response yang aman (menangani BigInt dan relasi null).
  */
-export function toProcurementLetterResponse(letter: ProcurementLetterWithRelations): ProcurementLetterResponse {
+export function toProcurementLetterResponse(letter: ProcurementLetterWithRelations, latestNote?: LatestNoteResponse): ProcurementLetterResponse {
   const serialized = serializeBigInt(letter)
   return {
     ...serialized,
     createdBy: letter.createdBy || { name: 'Unknown User' },
     currentApprover: letter.currentApprover || { name: 'Unknown Approver' },
-    unit: letter.unit || { name: 'Unknown Unit' }
+    unit: letter.unit || { name: 'Unknown Unit' },
+    ...(latestNote ? { latestNote } : {})
   }
 }
 
@@ -107,11 +118,12 @@ export function toDashboardProcurementLettersResponse(
   limit: number,
   totalInUnit: number,
   totalApproved: number,
-  totalRejected: number
+  totalRejected: number,
+  latestNotes?: Record<string, LatestNoteResponse | undefined>
 ): GetDashboardProcurementsResponse {
   return {
     summary: { total_in_unit: totalInUnit, total_approved: totalApproved, total_rejected: totalRejected },
-    letters: letters.map(toProcurementLetterResponse),
+    letters: letters.map((letter) => toProcurementLetterResponse(letter, latestNotes?.[letter.id])),
     pagination: {
       total_data: total,
       page: page,
@@ -128,10 +140,11 @@ export function toAllProcurementLettersResponse(
   letters: ProcurementLetterWithRelations[],
   total: number,
   page: number,
-  limit: number
+  limit: number,
+  latestNotes?: Record<string, LatestNoteResponse | undefined>
 ): GetAllProcurementLettersResponse {
   return {
-    letters: letters.map(toProcurementLetterResponse),
+    letters: letters.map((letter) => toProcurementLetterResponse(letter, latestNotes?.[letter.id])),
     pagination: {
       total_data: total,
       page: page,
@@ -141,8 +154,12 @@ export function toAllProcurementLettersResponse(
   }
 }
 
-export function toProgressResponse(letter: ProcurementLetterWithRelations, logs: ProcurementLogFormData[]): ProgressResponse {
-  const serializedLetter = toProcurementLetterResponse(letter)
+export function toProgressResponse(
+  letter: ProcurementLetterWithRelations,
+  logs: ProcurementLogFormData[],
+  latestNote?: LatestNoteResponse
+): ProgressResponse {
+  const serializedLetter = toProcurementLetterResponse(letter, latestNote)
   const serializedLogs = logs.map((log) => ({
     logId: log.logId,
     action: log.action,

@@ -1,9 +1,9 @@
 import fs from 'fs'
 import path from 'path'
-import { LogAction } from '@prisma/client'
 import {
   ProgressResponse,
   toProgressResponse,
+  LatestNoteResponse,
   toHistoryLogResponse,
   ProcurementLogFormData,
   ProcessDecisionRequestDto,
@@ -20,10 +20,115 @@ import { prismaClient } from '../application/database'
 import { ResponseError } from '../error/response-error'
 import { UserWithRelations } from '../type/user-request'
 import { ProcurementValidation } from '../validation/procurement-validation'
+import { LogAction, ProcurementLog, Prisma } from '@prisma/client'
 
-// --- Helper & Config (Tidak berubah) ---
+// --- Helper & Config ---
 const HEAD_OFFICE_ROLES = ['Direktur Keuangan', 'Direktur Operasional', 'Direktur Utama', 'Kadiv Keuangan', 'General Affair']
 const HEAD_OFFICE_CODE = 'HO'
+
+const PROCUREMENT_LETTER_INCLUDE = {
+  createdBy: { select: { name: true } },
+  currentApprover: { select: { name: true } },
+  unit: { select: { name: true } }
+} as const
+
+const LETTER_DEFAULT_ORDER = { createdAt: 'desc' as const }
+
+const buildPaginationParams = (page: number, limit: number) => ({
+  skip: Math.max(page - 1, 0) * limit,
+  take: limit
+})
+
+const isNumericSearchTerm = (search?: string) =>
+  typeof search === 'string' && search.trim().length > 0 && !isNaN(parseFloat(search)) && isFinite(Number(search))
+
+const buildLetterSearchFilter = (search?: string): Prisma.ProcurementLetterWhereInput | undefined => {
+  if (!search) {
+    return undefined
+  }
+
+  const clauses: Prisma.ProcurementLetterWhereInput[] = [{ letterNumber: { contains: search } }, { letterAbout: { contains: search } }]
+
+  if (isNumericSearchTerm(search)) {
+    clauses.push({ nominal: { equals: BigInt(search) } })
+  }
+
+  return { OR: clauses }
+}
+
+const composeWhereWithSearch = (baseWhere: Prisma.ProcurementLetterWhereInput, search?: string): Prisma.ProcurementLetterWhereInput => {
+  const searchFilter = buildLetterSearchFilter(search)
+  return searchFilter ? { ...baseWhere, AND: [searchFilter] } : baseWhere
+}
+
+const fetchPaginatedLetters = async (where: Prisma.ProcurementLetterWhereInput, page: number, limit: number) => {
+  const { skip, take } = buildPaginationParams(page, limit)
+  const [totalLetters, letters] = await prismaClient.$transaction([
+    prismaClient.procurementLetter.count({ where }),
+    prismaClient.procurementLetter.findMany({
+      where,
+      include: PROCUREMENT_LETTER_INCLUDE,
+      skip,
+      take,
+      orderBy: LETTER_DEFAULT_ORDER
+    })
+  ])
+
+  return { totalLetters, letters }
+}
+
+type ProcurementLogWithActor = ProcurementLog & { actor: { id: string; name: string } }
+
+const hasNoteContent = (comment?: string | null) => typeof comment === 'string' && comment.trim().length > 0
+
+const mapLogToLatestNote = (log: ProcurementLogWithActor): LatestNoteResponse => ({
+  logId: log.id,
+  action: log.action,
+  comment: log.comment ?? null,
+  timestamp: log.timestamp.toISOString(),
+  actor: { id: log.actor.id, name: log.actor.name }
+})
+
+const fetchLatestNoteForLetter = async (letterId: string): Promise<LatestNoteResponse | undefined> => {
+  const log = await prismaClient.procurementLog.findFirst({
+    where: { procurementLetterId: letterId, comment: { not: null } },
+    include: { actor: { select: { id: true, name: true } } },
+    orderBy: { timestamp: 'desc' }
+  })
+  if (!log || !hasNoteContent(log.comment)) {
+    return undefined
+  }
+  return mapLogToLatestNote(log as ProcurementLogWithActor)
+}
+
+const fetchLatestNotesByLetterIds = async (letterIds: string[]): Promise<Record<string, LatestNoteResponse>> => {
+  if (letterIds.length === 0) {
+    return {}
+  }
+  const logs = (await prismaClient.procurementLog.findMany({
+    where: { procurementLetterId: { in: letterIds }, comment: { not: null } },
+    include: { actor: { select: { id: true, name: true } } },
+    orderBy: { timestamp: 'desc' }
+  })) as ProcurementLogWithActor[]
+
+  const noteMap: Record<string, LatestNoteResponse> = {}
+  for (const log of logs) {
+    if (noteMap[log.procurementLetterId]) continue
+    if (!hasNoteContent(log.comment)) continue
+    noteMap[log.procurementLetterId] = mapLogToLatestNote(log)
+  }
+  return noteMap
+}
+
+const hydrateLatestNotes = async (letters: { id: string }[]) => fetchLatestNotesByLetterIds(letters.map((letter) => letter.id))
+
+const mapLettersWithLatestNotes = (letters: any[], latestNotes: Record<string, LatestNoteResponse | undefined>) =>
+  letters.map((letter) => toProcurementLetterResponse(letter, latestNotes[letter.id]))
+
+const getLatestNoteFromLogs = (logs: ProcurementLogWithActor[]): LatestNoteResponse | undefined => {
+  const logWithNote = logs.find((log) => hasNoteContent(log.comment))
+  return logWithNote ? mapLogToLatestNote(logWithNote) : undefined
+}
 
 // --- Service Functions ---
 
@@ -37,58 +142,22 @@ export const getDashboardUserServices = async (user: UserWithRelations) => {
   }
 
   const dashboardData = await prismaClient.procurementLetter.findMany({
-    where: { unitId: unit?.id },
-    include: {
-      createdBy: { select: { name: true } },
-      currentApprover: { select: { name: true } },
-      unit: { select: { name: true } }
-    }
+    where: { unitId: unit.id },
+    include: PROCUREMENT_LETTER_INCLUDE
   })
-  return dashboardData.map(toProcurementLetterResponse)
+  const latestNotes = await hydrateLatestNotes(dashboardData)
+  return mapLettersWithLatestNotes(dashboardData, latestNotes)
 }
 
 /**
  * Mengambil data dashboard untuk admin.
  */
 export const getDashboardAdminServices = async (page: number, limit: number, search: string, unitId?: string) => {
-  const skip = (page - 1) * limit
+  const baseWhere: Prisma.ProcurementLetterWhereInput = unitId ? { unitId } : {}
+  const where = composeWhereWithSearch(baseWhere, search)
 
-  const baseWhere: any = {
-    ...(unitId ? { unitId } : {})
-  }
-
-  let searchFilter = {}
-  if (search) {
-    const isNumeric = !isNaN(parseFloat(search)) && isFinite(Number(search))
-    searchFilter = {
-      OR: [
-        { letterNumber: { contains: search } },
-        { letterAbout: { contains: search } },
-        ...(isNumeric ? [{ nominal: { equals: BigInt(search) } }] : [])
-      ]
-    }
-  }
-
-  const where = {
-    ...baseWhere,
-    ...(search && { AND: [searchFilter] })
-  }
-
-  const [totalLetters, letters] = await prismaClient.$transaction([
-    prismaClient.procurementLetter.count({ where }),
-    prismaClient.procurementLetter.findMany({
-      where,
-      include: {
-        createdBy: { select: { name: true } },
-        currentApprover: { select: { name: true } },
-        unit: { select: { name: true } }
-      },
-      skip,
-      take: limit,
-      orderBy: { createdAt: 'desc' }
-    })
-  ])
-
+  const { totalLetters, letters } = await fetchPaginatedLetters(where, page, limit)
+  const latestNotes = await hydrateLatestNotes(letters)
   const totalInUnit = unitId ? await prismaClient.procurementLetter.count({ where: { unitId } }) : await prismaClient.procurementLetter.count()
 
   // Summary counts (scoped by unitId if provided), ignoring search/pagination
@@ -99,7 +168,7 @@ export const getDashboardAdminServices = async (page: number, limit: number, sea
     prismaClient.procurementLetter.count({ where: rejectedWhere })
   ])
 
-  return toDashboardProcurementLettersResponse(letters, totalLetters, page, limit, totalInUnit, totalApproved, totalRejected)
+  return toDashboardProcurementLettersResponse(letters, totalLetters, page, limit, totalInUnit, totalApproved, totalRejected, latestNotes)
 }
 
 /**
@@ -110,6 +179,8 @@ export const createProcurementLetter = async (request: CreateProcurementRequestD
   // BigInt-safe logging of validated payload
   logger.debug(JSON.stringify(createRequest, (_, v) => (typeof v === 'bigint' ? v.toString() : v), 2))
   const nominal = typeof (createRequest as any).nominal === 'bigint' ? (createRequest as any).nominal : BigInt((createRequest as any).nominal)
+  const sanitizedNote = createRequest.note?.trim() ?? ''
+  const creationComment = sanitizedNote.length > 0 ? sanitizedNote : 'Surat pengadaan dibuat.'
 
   // Prevent unique constraint violation early by checking existing letter number
   const existingByNumber = await prismaClient.procurementLetter.findUnique({
@@ -188,65 +259,32 @@ export const createProcurementLetter = async (request: CreateProcurementRequestD
         createdById: creator.id,
         currentApproverId: nextApprover.id
       },
-      include: {
-        createdBy: { select: { name: true } },
-        currentApprover: { select: { name: true } },
-        unit: { select: { name: true } }
-      }
+      include: PROCUREMENT_LETTER_INCLUDE
     })
     await tx.procurementLog.create({
-      data: { procurementLetterId: newLetter.id, actorId: creator.id, action: 'CREATED', comment: 'Surat pengadaan dibuat.' }
+      data: { procurementLetterId: newLetter.id, actorId: creator.id, action: 'CREATED', comment: creationComment }
     })
     return newLetter
   })
 
   // Gunakan mapper sebelum return untuk mengatasi error BigInt
-  return toProcurementLetterResponse(letterTransaction)
+  const latestNote = await fetchLatestNoteForLetter(letterTransaction.id)
+  return toProcurementLetterResponse(letterTransaction, latestNote)
 }
 
 /**
- * Mengambil daftar surat untuk dashboard user (Logika tidak berubah).
+ * Mengambil daftar surat untuk dashboard user.
  */
 export const getProcurementLetters = async (user: UserWithRelations, page: number, limit: number, search: string) => {
-  const skip = (page - 1) * limit
-
-  const baseWhere = {
+  const baseWhere: Prisma.ProcurementLetterWhereInput = {
     OR: [{ currentApproverId: user.id }, { createdById: user.id, status: 'NEEDS_REVISION' as const }]
   }
 
-  let searchFilter = {}
-  if (search) {
-    const isNumeric = !isNaN(parseFloat(search)) && isFinite(Number(search))
-    searchFilter = {
-      OR: [
-        { letterNumber: { contains: search } },
-        { letterAbout: { contains: search } },
-        ...(isNumeric ? [{ nominal: { equals: BigInt(search) } }] : [])
-      ]
-    }
-  }
+  const where = composeWhereWithSearch(baseWhere, search)
 
-  const where = {
-    ...baseWhere,
-    ...(search && { AND: [searchFilter] })
-  }
-
-  const [totalLetters, letters] = await prismaClient.$transaction([
-    prismaClient.procurementLetter.count({ where }),
-    prismaClient.procurementLetter.findMany({
-      where,
-      include: {
-        createdBy: { select: { name: true } },
-        currentApprover: { select: { name: true } },
-        unit: { select: { name: true } }
-      },
-      skip,
-      take: limit,
-      orderBy: { createdAt: 'desc' }
-    })
-  ])
-
-  return toAllProcurementLettersResponse(letters, totalLetters, page, limit)
+  const { totalLetters, letters } = await fetchPaginatedLetters(where, page, limit)
+  const latestNotes = await hydrateLatestNotes(letters)
+  return toAllProcurementLettersResponse(letters, totalLetters, page, limit, latestNotes)
 }
 
 /**
@@ -349,12 +387,13 @@ export const processDecisionLetter = async (letterId: string, request: ProcessDe
       const updated = await tx.procurementLetter.update({
         where: { id: letterId },
         data: { status: finalStatus, currentApproverId: nextApproverId },
-        include: { createdBy: { select: { name: true } }, currentApprover: { select: { name: true } }, unit: { select: { name: true } } }
+        include: PROCUREMENT_LETTER_INCLUDE
       })
       await tx.procurementLog.create({ data: { procurementLetterId: letterId, actorId: approverUser.id, action: logAction, comment } })
       return updated
     })
-    return toProcurementLetterResponse(updatedLetter)
+    const latestNote = await fetchLatestNoteForLetter(updatedLetter.id)
+    return toProcurementLetterResponse(updatedLetter, latestNote)
   }
 
   // 3. Handle 'APPROVE'
@@ -380,12 +419,13 @@ export const processDecisionLetter = async (letterId: string, request: ProcessDe
       const updated = await tx.procurementLetter.update({
         where: { id: letterId },
         data: { status: 'APPROVED', currentApproverId: null },
-        include: { createdBy: { select: { name: true } }, currentApprover: { select: { name: true } }, unit: { select: { name: true } } }
+        include: PROCUREMENT_LETTER_INCLUDE
       })
       await tx.procurementLog.create({ data: { procurementLetterId: letterId, actorId: approverUser.id, action: 'APPROVED', comment } })
       return updated
     })
-    return toProcurementLetterResponse(finalLetter)
+    const latestNote = await fetchLatestNoteForLetter(finalLetter.id)
+    return toProcurementLetterResponse(finalLetter, latestNote)
   } else {
     // B. Jika bukan langkah terakhir, teruskan ke approver berikutnya
     const nextStep = ruleSteps.find((step) => step.stepOrder === currentStep.stepOrder + 1)
@@ -405,12 +445,13 @@ export const processDecisionLetter = async (letterId: string, request: ProcessDe
       const updated = await tx.procurementLetter.update({
         where: { id: letterId },
         data: { status: 'PENDING_APPROVAL', currentApproverId: nextApprover.id },
-        include: { createdBy: { select: { name: true } }, currentApprover: { select: { name: true } }, unit: { select: { name: true } } }
+        include: PROCUREMENT_LETTER_INCLUDE
       })
       await tx.procurementLog.create({ data: { procurementLetterId: letterId, actorId: approverUser.id, action: 'REVIEWED', comment } })
       return updated
     })
-    return toProcurementLetterResponse(forwardedLetter)
+    const latestNote = await fetchLatestNoteForLetter(forwardedLetter.id)
+    return toProcurementLetterResponse(forwardedLetter, latestNote)
   }
 }
 
@@ -511,18 +552,15 @@ export const updateProcurementLetter = async (
       status: 'PENDING_REVIEW',
       currentApproverId: nextApprover.id
     },
-    include: {
-      createdBy: { select: { name: true } },
-      currentApprover: { select: { name: true } },
-      unit: { select: { name: true } }
-    }
+    include: PROCUREMENT_LETTER_INCLUDE
   })
 
   await prismaClient.procurementLog.create({
     data: { procurementLetterId: updatedLetter.id, actorId: user.id, action: 'SUBMITTED', comment: 'Pengadaan direvisi dan diajukan kembali.' }
   })
 
-  return toProcurementLetterResponse(updatedLetter)
+  const latestNote = await fetchLatestNoteForLetter(updatedLetter.id)
+  return toProcurementLetterResponse(updatedLetter, latestNote)
 }
 
 /**
@@ -540,16 +578,13 @@ export const getProcurementDetails = async (user: UserWithRelations, letterId: s
   }
   const letters = await prismaClient.procurementLetter.findFirst({
     where: { id: letterId },
-    include: {
-      createdBy: { select: { name: true } },
-      currentApprover: { select: { name: true } },
-      unit: { select: { name: true } }
-    }
+    include: PROCUREMENT_LETTER_INCLUDE
   })
   if (!letters) {
     throw new ResponseError(404, 'Procurement letter not found')
   }
-  return toProcurementLetterResponse(letters)
+  const latestNote = await fetchLatestNoteForLetter(letters.id)
+  return toProcurementLetterResponse(letters, latestNote)
 }
 
 /**
@@ -564,20 +599,18 @@ export const getProcurementProgress = async (letterId: string): Promise<Progress
   }
   const letters = await prismaClient.procurementLetter.findFirst({
     where: { id: letterId },
-    include: {
-      createdBy: { select: { name: true } },
-      currentApprover: { select: { name: true } },
-      unit: { select: { name: true } }
-    }
+    include: PROCUREMENT_LETTER_INCLUDE
   })
   if (!letters) {
     throw new ResponseError(404, 'Procurement letter not found')
   }
-  const logs = await prismaClient.procurementLog.findMany({
+  const logs = (await prismaClient.procurementLog.findMany({
     where: { procurementLetterId: letterId },
-    include: { actor: true },
+    include: { actor: { select: { id: true, name: true } } },
     orderBy: { timestamp: 'desc' }
-  })
+  })) as ProcurementLogWithActor[]
+
+  const latestNote = getLatestNoteFromLogs(logs)
 
   const formattedLogs: ProcurementLogFormData[] = logs.map((log) => {
     return {
@@ -593,5 +626,5 @@ export const getProcurementProgress = async (letterId: string): Promise<Progress
     }
   })
 
-  return toProgressResponse(letters, formattedLogs)
+  return toProgressResponse(letters, formattedLogs, latestNote)
 }

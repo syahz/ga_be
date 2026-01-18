@@ -5,7 +5,6 @@ import {
   UpdateParticipantUserRequest,
   CreateParticipantUserRequest
 } from '../models/participant-model'
-import bcrypt from 'bcrypt'
 import { Validation } from '../validation/Validation'
 import { prismaClient } from '../application/database'
 import { ResponseError } from '../error/response-error'
