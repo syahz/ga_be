@@ -12,7 +12,8 @@ import {
   UpdateProcurementRequestDto,
   toProcurementLetterResponse,
   toAllProcurementLettersResponse,
-  toDashboardProcurementLettersResponse
+  toDashboardProcurementLettersResponse,
+  ProcessDecision
 } from '../models/procurement-model'
 import { logger } from '../utils/logger'
 import { Validation } from '../validation/Validation'
@@ -128,6 +129,17 @@ const mapLettersWithLatestNotes = (letters: any[], latestNotes: Record<string, L
 const getLatestNoteFromLogs = (logs: ProcurementLogWithActor[]): LatestNoteResponse | undefined => {
   const logWithNote = logs.find((log) => hasNoteContent(log.comment))
   return logWithNote ? mapLogToLatestNote(logWithNote) : undefined
+}
+
+const DEFAULT_DECISION_COMMENTS: Record<ProcessDecision, string> = {
+  APPROVE: 'Surat telah disetujui dan dapat dilanjutkan ke proses berikutnya.',
+  REJECT: 'Pengajuan ditolak karena tidak memenuhi persyaratan yang ditetapkan.',
+  REQUEST_REVISION: 'Mohon lakukan revisi agar pengajuan dapat diproses kembali.'
+}
+
+const resolveDecisionComment = (decision: ProcessDecision, comment?: string) => {
+  const trimmed = comment?.trim()
+  return trimmed && trimmed.length > 0 ? trimmed : DEFAULT_DECISION_COMMENTS[decision]
 }
 
 // --- Service Functions ---
@@ -363,7 +375,9 @@ export const getHistoryLogs = async (user: UserWithRelations, page: number, limi
  */
 export const processDecisionLetter = async (letterId: string, request: ProcessDecisionRequestDto, user: UserWithRelations) => {
   const decisionRequest = Validation.validate(ProcurementValidation.PROCESS_DECISION, request)
-  const { decision, comment } = decisionRequest
+  const { decision: rawDecision, comment } = decisionRequest
+  const decision = rawDecision as ProcessDecision
+  const normalizedComment = resolveDecisionComment(decision, comment)
 
   // 1. Validasi Pengguna dan Surat
   const approverUser = await prismaClient.user.findUnique({ where: { id: user.id }, include: { role: true } })
@@ -389,7 +403,9 @@ export const processDecisionLetter = async (letterId: string, request: ProcessDe
         data: { status: finalStatus, currentApproverId: nextApproverId },
         include: PROCUREMENT_LETTER_INCLUDE
       })
-      await tx.procurementLog.create({ data: { procurementLetterId: letterId, actorId: approverUser.id, action: logAction, comment } })
+      await tx.procurementLog.create({
+        data: { procurementLetterId: letterId, actorId: approverUser.id, action: logAction, comment: normalizedComment }
+      })
       return updated
     })
     const latestNote = await fetchLatestNoteForLetter(updatedLetter.id)
@@ -421,7 +437,9 @@ export const processDecisionLetter = async (letterId: string, request: ProcessDe
         data: { status: 'APPROVED', currentApproverId: null },
         include: PROCUREMENT_LETTER_INCLUDE
       })
-      await tx.procurementLog.create({ data: { procurementLetterId: letterId, actorId: approverUser.id, action: 'APPROVED', comment } })
+      await tx.procurementLog.create({
+        data: { procurementLetterId: letterId, actorId: approverUser.id, action: 'APPROVED', comment: normalizedComment }
+      })
       return updated
     })
     const latestNote = await fetchLatestNoteForLetter(finalLetter.id)
@@ -447,7 +465,9 @@ export const processDecisionLetter = async (letterId: string, request: ProcessDe
         data: { status: 'PENDING_APPROVAL', currentApproverId: nextApprover.id },
         include: PROCUREMENT_LETTER_INCLUDE
       })
-      await tx.procurementLog.create({ data: { procurementLetterId: letterId, actorId: approverUser.id, action: 'REVIEWED', comment } })
+      await tx.procurementLog.create({
+        data: { procurementLetterId: letterId, actorId: approverUser.id, action: 'REVIEWED', comment: normalizedComment }
+      })
       return updated
     })
     const latestNote = await fetchLatestNoteForLetter(forwardedLetter.id)
