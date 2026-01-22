@@ -1,6 +1,6 @@
 import multer from 'multer'
 import path from 'path'
-import fs from 'fs' // <-- 1. Impor 'fs'
+import fs from 'fs'
 import { ResponseError } from '../error/response-error'
 
 // Tentukan direktori upload
@@ -10,6 +10,8 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true })
 }
 // ---------------------------------------------
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -31,5 +33,5 @@ function fileFilter(req: Express.Request, file: Express.Multer.File, cb: multer.
 export const procurement_letter_upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 } // max 5MB
+  limits: { fileSize: MAX_FILE_SIZE }
 }).single('letterFile')

@@ -575,8 +575,11 @@ export const updateProcurementLetter = async (
     include: PROCUREMENT_LETTER_INCLUDE
   })
 
+  const sanitizedNote = updateRequest.note?.trim() ?? ''
+  const resubmissionComment = sanitizedNote.length > 0 ? sanitizedNote : 'Pengadaan direvisi dan diajukan kembali.'
+
   await prismaClient.procurementLog.create({
-    data: { procurementLetterId: updatedLetter.id, actorId: user.id, action: 'SUBMITTED', comment: 'Pengadaan direvisi dan diajukan kembali.' }
+    data: { procurementLetterId: updatedLetter.id, actorId: user.id, action: 'SUBMITTED', comment: resubmissionComment }
   })
 
   const latestNote = await fetchLatestNoteForLetter(updatedLetter.id)
