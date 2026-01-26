@@ -92,7 +92,7 @@ model ProcurementLog {
   procurementLetterId String            @map("procurement_letter_id")
   actorId             String            @map("actor_id")
   action              LogAction         @map("action")
-  comment             String?           @map("comment")
+  comment             String?           @db.LongText @map("comment")
   timestamp           DateTime          @default(now()) @map("timestamp") 
   procurementLetter   ProcurementLetter @relation(fields: [procurementLetterId], references: [id], onDelete: Cascade)
   actor               User              @relation(fields: [actorId], references: [id], onDelete: Cascade)
