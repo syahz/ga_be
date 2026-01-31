@@ -1,5 +1,5 @@
 {
-  "name": "lphub-system-information",
+  "name": "eproc-bmu-backend",
   "version": "1.0.0",
   "description": "Backend System Information E Proc BMU",
   "main": "index.js",
@@ -27,6 +27,8 @@
     "@types/passport-google-oauth20": "^2.0.16",
     "@types/request-ip": "^0.0.41",
     "@types/supertest": "^6.0.3",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
     "eslint": "^9.33.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
@@ -53,6 +55,8 @@
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "request-ip": "^3.3.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0",
     "zod": "^4.0.17"

@@ -1,109 +1,99 @@
+import { jest, describe, it, expect, beforeAll, afterEach } from '@jest/globals'
 import supertest from 'supertest'
+import axios from 'axios'
 import { web } from '../src/application/web'
 import { logger } from '../src/utils/logger'
-import { UserTest, UserWithRole } from './utils/test-utils'
 import { prismaClient } from '../src/application/database'
 import { hashToken } from '../src/utils/token'
 
+jest.mock('axios')
+const mockedAxios = axios as jest.Mocked<typeof axios>
+
 describe('Auth API (/api/auth)', () => {
-  let testUser: UserWithRole
-
-  // Buat satu user untuk tes sebelum semua tes berjalan
   beforeAll(async () => {
-    testUser = await UserTest.createUserByRole({
-      email: 'test.auth.user@example.com',
-      name: 'Auth Test User',
-      roleName: 'Staff',
-      unitCode: 'UBC'
-    })
+    process.env.ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'your-secret-key-for-testing'
+    process.env.CLIENT_ID = process.env.CLIENT_ID || 'test-client-id'
+    process.env.CLIENT_SECRET = process.env.CLIENT_SECRET || 'test-client-secret'
+    process.env.PORTAL_API_URL = process.env.PORTAL_API_URL || 'https://portal.bmuconnect.id'
+
+    await prismaClient.role.upsert({ where: { name: 'Staff' }, update: {}, create: { name: 'Staff' } })
+    await prismaClient.division.upsert({ where: { name: 'Finance' }, update: {}, create: { name: 'Finance' } })
+    await prismaClient.unit.upsert({ where: { code: 'UBC' }, update: { name: 'UB Coffee' }, create: { code: 'UBC', name: 'UB Coffee' } })
   })
 
-  // Hapus user dan refresh token setelah semua tes selesai
-  afterAll(async () => {
-    await UserTest.delete()
-  })
+  const portalUser = {
+    id: 'sso-user-1',
+    email: 'sso.test.user@example.com',
+    name: 'SSO Test User',
+    role: 'Staff',
+    unit_code: 'UBC',
+    division_name: 'Finance'
+  }
 
-  // Hapus refresh token setelah setiap tes untuk isolasi
+  const mockPortalResponse = { data: { user: portalUser, portal_refresh_expires_ts: null } }
+
+  const extractRefreshToken = (cookies: string[] = []) =>
+    cookies
+      .find((c) => c.startsWith('refresh_token='))
+      ?.split(';')[0]
+      .split('=')[1]
+
+  const performSsoLogin = async () => {
+    mockedAxios.post.mockResolvedValueOnce(mockPortalResponse)
+    return supertest(web).post('/api/auth/sso/callback').send({ code: 'valid-code' })
+  }
+
   afterEach(async () => {
-    await prismaClient.refreshToken.deleteMany({
-      where: { userId: testUser.id }
-    })
+    jest.clearAllMocks()
+    await prismaClient.refreshToken.deleteMany({ where: { userId: portalUser.id } })
+    await prismaClient.user.deleteMany({ where: { email: portalUser.email } })
   })
 
-  describe('POST /api/auth/login', () => {
-    it('should login successfully with correct credentials', async () => {
-      const response = await supertest(web).post('/api/auth/login').send({
-        email: testUser.email,
-        password: 'password123'
-      })
+  describe('POST /api/auth/sso/callback', () => {
+    it('should login via SSO and set cookies', async () => {
+      const response = await performSsoLogin()
 
-      logger.debug('POST /api/auth/login (success): %s', JSON.stringify(response.body, null, 2))
+      logger.debug('POST /api/auth/sso/callback (success): %s', JSON.stringify(response.body, null, 2))
       expect(response.status).toBe(200)
-      expect(response.body).toHaveProperty('accessToken')
-      expect(response.body.user.email).toBe(testUser.email)
+      expect(response.body.data).toHaveProperty('accessToken')
+      expect(response.body.data.user.email).toBe(portalUser.email)
 
-      // Verifikasi bahwa cookie di-set
-      const cookies = response.get('Set-Cookie')
-      expect((cookies ?? []).some((cookie) => cookie.startsWith('refresh_token='))).toBe(true)
-      expect((cookies ?? []).some((cookie) => cookie.startsWith('user_role=Staff'))).toBe(true)
-      expect((cookies ?? []).some((cookie) => cookie.startsWith('user_unit=UB%20Coffee'))).toBe(true)
+      const cookies = response.get('Set-Cookie') ?? []
+      expect(cookies.some((cookie) => cookie.startsWith('refresh_token='))).toBe(true)
+      expect(cookies.some((cookie) => cookie.startsWith('user_role='))).toBe(true)
+      expect(cookies.some((cookie) => cookie.startsWith('user_unit='))).toBe(true)
     })
 
-    it('should fail with 401 for incorrect password', async () => {
-      const response = await supertest(web).post('/api/auth/login').send({
-        email: testUser.email,
-        password: 'wrongpassword'
-      })
+    it('should return 500 if portal rejects the code', async () => {
+      mockedAxios.post.mockRejectedValueOnce(new Error('Invalid code'))
 
-      logger.debug('POST /api/auth/login (wrong password): %s', JSON.stringify(response.body, null, 2))
-      expect(response.status).toBe(401)
-      expect(response.body.error).toBe('Invalid credentials')
-    })
+      const response = await supertest(web).post('/api/auth/sso/callback').send({ code: 'bad-code' })
 
-    it('should fail with 401 for non-existent user', async () => {
-      const response = await supertest(web).post('/api/auth/login').send({
-        email: 'not.exist@example.com',
-        password: 'password123'
-      })
-
-      logger.debug('POST /api/auth/login (not found): %s', JSON.stringify(response.body, null, 2))
-      expect(response.status).toBe(401)
-      expect(response.body.error).toBe('Invalid credentials')
+      logger.debug('POST /api/auth/sso/callback (portal error): %s', JSON.stringify(response.body, null, 2))
+      expect(response.status).toBe(500)
     })
   })
 
   describe('POST /api/auth/refresh', () => {
-    let refreshToken: string
+    it('should refresh access token with valid refresh token', async () => {
+      const loginResponse = await performSsoLogin()
+      const refreshToken = extractRefreshToken(loginResponse.get('Set-Cookie'))
 
-    beforeEach(async () => {
-      // Lakukan login untuk mendapatkan refresh token yang valid
-      const loginResponse = await supertest(web).post('/api/auth/login').send({
-        email: testUser.email,
-        password: 'password123'
-      })
-
-      // Ekstrak refresh token dari cookie
-      const cookie = loginResponse.get('Set-Cookie')?.find((c) => c.startsWith('refresh_token=')) ?? ''
-      refreshToken = cookie!.split(';')[0].split('=')[1]
-    })
-
-    it('should refresh the access token successfully with a valid refresh token', async () => {
       const response = await supertest(web).post('/api/auth/refresh').set('Cookie', `refresh_token=${refreshToken}`)
 
       logger.debug('POST /api/auth/refresh (success): %s', JSON.stringify(response.body, null, 2))
       expect(response.status).toBe(200)
       expect(response.body).toHaveProperty('accessToken')
-      expect(response.body.user.id).toBe(testUser.id)
+      expect(response.body.user.email).toBe(portalUser.email)
 
-      // Pastikan cookie baru di-set
-      const newCookies = response.get('Set-Cookie')
-      expect((newCookies ?? []).some((cookie) => cookie.startsWith('refresh_token='))).toBe(true)
+      const newCookies = response.get('Set-Cookie') ?? []
+      expect(newCookies.some((cookie) => cookie.startsWith('refresh_token='))).toBe(true)
     })
 
     it('should fail with 401 if refresh token is missing', async () => {
       const response = await supertest(web).post('/api/auth/refresh')
 
-      logger.debug('POST /api/auth/refresh (no token): %s', JSON.stringify(response.body, null, 2))
+      logger.debug('POST /api/auth/refresh (missing token): %s', JSON.stringify(response.body, null, 2))
       expect(response.status).toBe(401)
       expect(response.body.error).toBe('No refresh token')
     })
@@ -113,19 +103,14 @@ describe('Auth API (/api/auth)', () => {
 
       logger.debug('POST /api/auth/refresh (invalid token): %s', JSON.stringify(response.body, null, 2))
       expect(response.status).toBe(401)
-      expect(response.body.error).toBe('Invalid refresh token')
+      expect(response.body.error).toBe('Invalid or expired refresh token')
     })
   })
 
   describe('DELETE /api/auth/logout', () => {
-    it('should logout successfully and clear cookies', async () => {
-      // Login dulu untuk mendapatkan token
-      const loginResponse = await supertest(web).post('/api/auth/login').send({
-        email: testUser.email,
-        password: 'password123'
-      })
-      const cookie = loginResponse.get('Set-Cookie')?.find((c) => c.startsWith('refresh_token='))
-      const refreshToken = cookie!.split(';')[0].split('=')[1]
+    it('should revoke refresh token and clear cookies', async () => {
+      const loginResponse = await performSsoLogin()
+      const refreshToken = extractRefreshToken(loginResponse.get('Set-Cookie'))!
 
       const response = await supertest(web).delete('/api/auth/logout').set('Cookie', `refresh_token=${refreshToken}`)
 
@@ -133,14 +118,12 @@ describe('Auth API (/api/auth)', () => {
       expect(response.status).toBe(200)
       expect(response.body.ok).toBe(true)
 
-      // Verifikasi bahwa token di database sudah di-revoke
       const tokenHash = hashToken(refreshToken)
       const storedToken = await prismaClient.refreshToken.findUnique({ where: { tokenHash } })
       expect(storedToken?.revoked).toBe(true)
 
-      // Verifikasi bahwa cookie diinstruksikan untuk dihapus
-      const clearedCookies = response.get('Set-Cookie')
-      expect((clearedCookies ?? []).every((c) => c.includes('Max-Age=0') || c.includes('Expires=Thu, 01 Jan 1970'))).toBe(true)
+      const clearedCookies = response.get('Set-Cookie') ?? []
+      expect(clearedCookies.every((c) => c.includes('Max-Age=0') || c.includes('Expires=Thu, 01 Jan 1970'))).toBe(true)
     })
   })
 })

@@ -6,6 +6,8 @@ import { publicRouter } from '../routes/public-api'
 import { privateRouter } from '../routes/private-api'
 import cookieParser from 'cookie-parser'
 import { errorMiddleware } from '../middleware/error-middleware'
+import swaggerUi from 'swagger-ui-express'
+import swaggerSpec from '../docs/swagger'
 
 export const web = express()
 
@@ -20,6 +22,8 @@ web.use('/uploads', express.static(path.join(__dirname, '../../uploads')))
 web.use(cors(corsOptions))
 web.use(cookieParser())
 web.use(express.json())
+web.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
+web.get('/api/docs.json', (_req, res) => res.json(swaggerSpec))
 web.use(publicRouter)
 web.use(privateRouter)
 web.use(errorMiddleware)

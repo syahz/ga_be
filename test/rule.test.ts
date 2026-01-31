@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeAll, afterAll, afterEach } from '@jest/globals'
 import supertest from 'supertest'
 import { web } from '../src/application/web'
 import { logger } from '../src/utils/logger'
@@ -11,6 +12,11 @@ describe('Rule API (/api/admin/rules)', () => {
   let roles: Role[]
 
   beforeAll(async () => {
+    const neededRoles = ['Admin', 'Staff', 'Manajer Keuangan', 'GM', 'Direktur Operasional']
+    for (const name of neededRoles) {
+      await prismaClient.role.upsert({ where: { name }, update: {}, create: { name } })
+    }
+
     adminUser = await UserTest.createAdmin()
     token = UserTest.generateToken(adminUser)
     roles = await RuleTest.getRoles()

@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeAll, afterAll, afterEach, beforeEach } from '@jest/globals'
 import supertest from 'supertest'
 import { web } from '../src/application/web'
 import { logger } from '../src/utils/logger'
@@ -12,6 +13,9 @@ describe('Participant API (/api/admin/participants)', () => {
   let ubcUnit: Unit
 
   beforeAll(async () => {
+    await prismaClient.role.upsert({ where: { name: 'Staff' }, update: {}, create: { name: 'Staff' } })
+    await prismaClient.unit.upsert({ where: { code: 'UBC' }, update: { name: 'UB Coffee' }, create: { code: 'UBC', name: 'UB Coffee' } })
+
     adminUser = await UserTest.createAdmin()
     adminToken = UserTest.generateToken(adminUser)
 
